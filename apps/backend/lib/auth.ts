@@ -1,0 +1,46 @@
+import { betterAuth } from 'better-auth'
+import { drizzleAdapter } from '@better-auth/drizzle-adapter'
+import { db } from './db'
+import * as schema from './db/schema'
+import { openAPI, username } from 'better-auth/plugins'
+
+export const auth = betterAuth({
+	// baseURL: Bun.env.API_URL,
+	// trustedOrigins: [Bun.env.APP_URL!],
+	basePath: '/auth',
+	// secret: Bun.env.BETTER_AUTH_SECRET,
+	database: drizzleAdapter(db, {
+		provider: 'pg',
+		schema: schema,
+	}),
+	emailAndPassword: {
+		enabled: true,
+		disableSignUp: false,
+	},
+	socialProviders: {
+		// google: {
+		// 	prompt: 'select_account consent',
+		// 	enabled:
+		// 		!!Bun.env.GOOGLE_OAUTH_CLIENT_ID &&
+		// 		!!Bun.env.GOOGLE_OAUTH_CLIENT_SECRET,
+		// 	clientId: Bun.env.GOOGLE_OAUTH_CLIENT_ID!,
+		// 	clientSecret: Bun.env.GOOGLE_OAUTH_CLIENT_SECRET!,
+		// 	scope: [
+		// 		'https://www.googleapis.com/auth/userinfo.profile',
+		// 		'https://www.googleapis.com/auth/userinfo.email',
+		// 	],
+		// },
+	},
+	user: {
+		changeEmail: {
+			enabled: true,
+		},
+		deleteUser: {
+			enabled: true,
+		},
+	},
+	telemetry: {
+		enabled: false,
+	},
+	plugins: [username(), openAPI()],
+})
