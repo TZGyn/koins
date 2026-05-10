@@ -9,9 +9,11 @@
 		CardHeader,
 		CardTitle,
 	} from '$lib/components/ui/card/index.js'
+	import { formatEther } from 'ethers'
 
 	let w = Wallet()
 	let inputSeed = $state('')
+	let apiKeyInput = $state('')
 
 	$effect(() => {
 		w.init()
@@ -53,34 +55,97 @@
 			</CardContent>
 		</Card>
 	{:else}
-		<Card>
-			<CardHeader>
-				<CardTitle>Wallet</CardTitle>
-				<CardDescription>Your wallet is unlocked</CardDescription>
-			</CardHeader>
-			<CardContent>
-				{#if w.address}
-					<div class="mb-4 space-y-1">
-						<p class="font-medium text-xs">Address</p>
-						<p class="font-mono text-xs break-all">{w.address}</p>
-						<p class="mt-2 font-medium text-xs">BNB Balance</p>
-						<p class="font-mono text-lg">{w.balance} BNB</p>
+		<div class="flex flex-col gap-4">
+			<Card>
+				<CardHeader>
+					<div class="flex items-center justify-between">
+						<div>
+							<CardTitle>Wallet</CardTitle>
+							<CardDescription>Your wallet is unlocked</CardDescription>
+						</div>
+						<div class="flex gap-1" role="group">
+							{#each w.networks as net}
+								<button
+									class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors {w.network === net.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}"
+									onclick={() => w.switchNetwork(net.id)}>{net.name}</button>
+							{/each}
+						</div>
 					</div>
-				{/if}
+				</CardHeader>
+				<CardContent>
+					{#if w.address}
+						<div class="mb-4 space-y-1">
+							<p class="font-medium text-xs">Address</p>
+							<p class="font-mono text-xs break-all">{w.address}</p>
+							<p class="mt-2 font-medium text-xs">{w.symbol} Balance</p>
+							<p class="font-mono text-lg">{w.balance} {w.symbol}</p>
+						</div>
+						<div class="mb-4 space-y-1">
+							<p class="font-medium text-xs">Tokens</p>
+							{#each w.tokenBalances as t}
+								<p class="font-mono text-sm">
+									{Number(t.balance) < 0.0001 && Number(t.balance) > 0 ? '<0.0001' : Number(t.balance).toFixed(4)} {t.symbol}
+								</p>
+							{/each}
+						</div>
+					{/if}
 
-				{#if w.error}
-					<p class="mb-3 text-red-500">{w.error}</p>
-				{/if}
+					{#if w.error}
+						<p class="mb-3 text-red-500">{w.error}</p>
+					{/if}
 
-				<div class="flex gap-2">
-					<Button onclick={() => w.refresh()} disabled={w.loading}>
-						{w.loading ? 'Refreshing...' : 'Refresh Balance'}
-					</Button>
-					<Button variant="outline" onclick={() => w.lock()}>
-						Lock
-					</Button>
-				</div>
-			</CardContent>
-		</Card>
+					<div class="flex gap-2">
+						<Button onclick={() => w.refresh()} disabled={w.loading}>
+							{w.loading ? 'Refreshing...' : 'Refresh'}
+						</Button>
+						<Button variant="outline" onclick={() => w.lock()}>
+							Lock
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Transactions</CardTitle>
+				</CardHeader>
+				<CardContent>
+					{#if !w.etherscanKey}
+						<div class="flex gap-2 items-center">
+							<input
+								class="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 font-mono text-xs"
+								placeholder="Etherscan API key"
+								bind:value={apiKeyInput} />
+							<Button
+								size="sm"
+								onclick={() => w.saveEtherscanKey(apiKeyInput)}
+								disabled={!apiKeyInput.trim()}>Save</Button>
+						</div>
+					{:else if w.transactions.length === 0}
+						<p class="text-muted-foreground text-xs">No transactions found</p>
+					{:else}
+						<div class="max-h-48 space-y-1 overflow-y-auto">
+							{#each w.transactions.slice(0, 10) as tx}
+								<div class="flex items-center justify-between rounded-md bg-muted px-2 py-1.5 font-mono text-xs">
+									<div class="min-w-0 flex-1">
+										<p class="truncate" title={tx.hash}>
+											<a
+												href="{w.explorerUrl}{tx.hash}"
+												target="_blank"
+												rel="noreferrer"
+												class="hover:underline">{tx.hash.slice(0, 10)}...</a>
+										</p>
+										<p class="text-muted-foreground">{Number(formatEther(tx.value)).toFixed(4)} {w.symbol}</p>
+									</div>
+									<span class="shrink-0 {tx.isError === '0' ? 'text-green-500' : 'text-red-500'}">
+										{tx.isError === '0' ? '✓' : '✗'}
+									</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</CardContent>
+			</Card>
+		</div>
 	{/if}
 </div>

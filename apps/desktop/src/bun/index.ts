@@ -55,6 +55,24 @@ ApplicationMenu.setApplicationMenu([
 
 const url = await getMainViewUrl()
 
+const ETHERSCAN_API = 'https://api.etherscan.io/v2/api'
+
+type EtherscanTx = {
+	blockNumber: string
+	timeStamp: string
+	hash: string
+	from: string
+	to: string
+	value: string
+	gas: string
+	gasPrice: string
+	isError: string
+	txreceipt_status: string
+	input: string
+	contractAddress: string
+	gasUsed: string
+}
+
 type RPC = {
 	bun: RPCSchema<{
 		requests: {
@@ -73,6 +91,15 @@ type RPC = {
 				}
 				response: Promise<void>
 			}
+			fetchTxHistory: {
+				params: {
+					address: string
+					chainid: string
+					page?: number
+					offset?: number
+				}
+				response: Promise<EtherscanTx[]>
+			}
 		}
 		messages: {}
 	}>
@@ -90,6 +117,39 @@ const rpc = BrowserView.defineRPC<RPC>({
 			},
 			setSecret: async ({ name, service, value }) => {
 				await Bun.secrets.set({ name, service, value })
+			},
+			fetchTxHistory: async ({
+				address,
+				chainid,
+				page = 1,
+				offset = 20,
+			}) => {
+				const key = await Bun.secrets.get({
+					service: 'koins',
+					name: 'etherscan_key',
+				})
+				if (!key) return []
+				const params = new URLSearchParams({
+					module: 'account',
+					action: 'txlist',
+					address,
+					page: String(page),
+					offset: String(offset),
+					sort: 'desc',
+					apikey: key,
+					chainid,
+				})
+				try {
+					const url = `${ETHERSCAN_API}?${params}`
+					const res = await fetch(url)
+					const data = await res.json()
+					console.log(data)
+					if (data.status !== '1') return []
+					return data.result as EtherscanTx[]
+				} catch (error) {
+					console.log(error)
+					return []
+				}
 			},
 		},
 		messages: {},

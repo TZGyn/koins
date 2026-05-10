@@ -1,5 +1,21 @@
 import { Electroview } from 'electrobun/view'
 
+export type EtherscanTx = {
+	blockNumber: string
+	timeStamp: string
+	hash: string
+	from: string
+	to: string
+	value: string
+	isError: string
+	txreceipt_status: string
+	gas: string
+	gasPrice: string
+	input: string
+	contractAddress: string
+	gasUsed: string
+}
+
 type RPC = {
 	bun: {
 		requests: {
@@ -17,6 +33,15 @@ type RPC = {
 					value: string
 				}
 				response: Promise<void>
+			}
+			fetchTxHistory: {
+				params: {
+					address: string
+					chainid: string
+					page?: number
+					offset?: number
+				}
+				response: Promise<EtherscanTx[]>
 			}
 		}
 		messages: {}
