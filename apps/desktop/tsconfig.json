@@ -1,0 +1,17 @@
+{
+	"extends": ["./.router/tsconfig.json"],
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "preserve",
+		"moduleResolution": "bundler",
+		"esModuleInterop": true,
+		"strict": true,
+		"noEmit": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": true,
+		"paths": {
+			"$lib": ["./src/lib"],
+			"$lib/*": ["./src/lib/*"]
+		}
+	}
+}
