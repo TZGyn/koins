@@ -6,15 +6,19 @@ export type TxEntry = {
 	from: string
 	to: string
 	value: string
-	input?: string
-	isError?: string
 	tokenSymbol?: string
-	tokenName?: string
 	tokenDecimal?: string
 	contractAddress?: string
 	pairedValue?: string
 	pairedSymbol?: string
 	pairedDecimals?: string
+}
+
+export type TokenBalanceResult = {
+	symbol: string
+	balance: string
+	contractAddress: string
+	logo?: string
 }
 
 type RPC = {
@@ -39,10 +43,15 @@ type RPC = {
 				params: {
 					address: string
 					chainid: string
-					page?: number
-					offset?: number
 				}
 				response: Promise<TxEntry[]>
+			}
+			fetchTokenBalances: {
+				params: {
+					address: string
+					chainid: string
+				}
+				response: Promise<TokenBalanceResult[]>
 			}
 			openExternal: {
 				params: {

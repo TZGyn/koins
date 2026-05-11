@@ -7,6 +7,7 @@ import {
 	type RPCSchema,
 	Utils,
 } from 'electrobun/bun'
+import { inspect } from 'util'
 
 const DEV_SERVER_PORT = 5173
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`
@@ -56,7 +57,18 @@ ApplicationMenu.setApplicationMenu([
 
 const url = await getMainViewUrl()
 
-const ETHERSCAN_API = 'https://api.etherscan.io/v2/api'
+const ALCHEMY_NETWORKS: Record<string, string> = {
+	'1': 'eth-mainnet',
+	'137': 'polygon-mainnet',
+	'56': 'bnb-mainnet',
+}
+
+type TokenBalanceResult = {
+	symbol: string
+	balance: string
+	contractAddress: string
+	logo?: string
+}
 
 type TxEntry = {
 	hash: string
@@ -64,10 +76,7 @@ type TxEntry = {
 	from: string
 	to: string
 	value: string
-	input?: string
-	isError?: string
 	tokenSymbol?: string
-	tokenName?: string
 	tokenDecimal?: string
 	contractAddress?: string
 	pairedValue?: string
@@ -97,10 +106,15 @@ type RPC = {
 				params: {
 					address: string
 					chainid: string
-					page?: number
-					offset?: number
 				}
 				response: Promise<TxEntry[]>
+			}
+			fetchTokenBalances: {
+				params: {
+					address: string
+					chainid: string
+				}
+				response: Promise<TokenBalanceResult[]>
 			}
 			openExternal: {
 				params: {
@@ -117,32 +131,148 @@ type RPC = {
 	}>
 }
 
-async function fetchEtherscan(
+async function fetchAlchemyTransfers(
 	key: string,
 	chainid: string,
-	action: string,
 	address: string,
-	page: number,
-	offset: number,
 ): Promise<any[]> {
-	const params = new URLSearchParams({
-		module: 'account',
-		action,
-		address,
-		page: String(page),
-		offset: String(offset),
-		sort: 'desc',
-		apikey: key,
-		chainid,
+	const network = ALCHEMY_NETWORKS[chainid]
+	if (!network) return []
+	const url = `https://${network}.g.alchemy.com/v2/${key}`
+
+	const body = (fromAddress?: string, toAddress?: string) => ({
+		jsonrpc: '2.0',
+		id: 0,
+		method: 'alchemy_getAssetTransfers',
+		params: [
+			{
+				...(fromAddress ? { fromAddress } : {}),
+				...(toAddress ? { toAddress } : {}),
+				category: ['external', 'erc20'],
+				withMetadata: true,
+				maxCount: '0x3E8',
+			},
+		],
 	})
-	const res = await fetch(`${ETHERSCAN_API}?${params}`)
-	const data = await res.json()
-	if (data.status !== '1') return []
-	return data.result
+
+	const [outRes, inRes] = await Promise.all([
+		fetch(url, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body(address, undefined)),
+		}).then((r) => r.json()),
+		fetch(url, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body(undefined, address)),
+		}).then((r) => r.json()),
+	])
+
+	const outgoing: any[] = outRes.result?.transfers ?? []
+	const incoming: any[] = inRes.result?.transfers ?? []
+
+	const seen = new Set<string>()
+	return [...outgoing, ...incoming].filter((t) => {
+		if (seen.has(t.hash)) return false
+		seen.add(t.hash)
+		return true
+	})
+}
+
+function formatUnits(balance: string, decimals: number): string {
+	const bal = BigInt(balance)
+	if (bal === 0n) return '0'
+	const divisor = 10n ** BigInt(decimals)
+	const intPart = bal / divisor
+	const fracPart = (bal % divisor)
+		.toString()
+		.padStart(decimals, '0')
+		.replace(/0+$/, '')
+	return fracPart ? `${intPart}.${fracPart}` : `${intPart}`
+}
+
+async function fetchAlchemyTokenBalances(
+	key: string,
+	chainid: string,
+	address: string,
+): Promise<TokenBalanceResult[]> {
+	const network = ALCHEMY_NETWORKS[chainid]
+	if (!network) return []
+	const url = `https://${network}.g.alchemy.com/v2/${key}`
+
+	const post = (body: any) =>
+		fetch(url, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		}).then((r) => r.json())
+
+	const balRes = await post({
+		jsonrpc: '2.0',
+		id: 0,
+		method: 'alchemy_getTokenBalances',
+		params: [address, 'erc20'],
+	})
+	// console.log(inspect(balRes, { depth: null }))
+
+	const tokens: any[] = balRes.result?.tokenBalances ?? []
+	const nonZero = tokens.filter(
+		(t: any) => t.tokenBalance !== '0x0' && !t.error,
+	)
+
+	const metas = await Promise.allSettled(
+		nonZero.map((t: any) =>
+			post({
+				jsonrpc: '2.0',
+				id: 0,
+				method: 'alchemy_getTokenMetadata',
+				params: [t.contractAddress],
+			}),
+		),
+	)
+	console.log(inspect(metas, { depth: null }))
+
+	return nonZero
+		.map((t: any, i: number) => {
+			const meta =
+				metas[i].status === 'fulfilled' ? metas[i].value.result : null
+			return {
+				symbol: meta?.symbol ?? 'Unknown',
+				decimals: meta?.decimals ?? 0,
+				balance: formatUnits(t.tokenBalance, meta?.decimals ?? 18),
+				contractAddress: t.contractAddress,
+				logo: meta?.logo ?? undefined,
+			}
+		})
+		.filter((t) => t.logo && t.decimals !== 0)
+}
+
+function mapTransfer(t: any): TxEntry {
+	const isExternal = t.category === 'external'
+	return {
+		hash: t.hash,
+		timeStamp: String(
+			Math.floor(
+				new Date(t.metadata.blockTimestamp).getTime() / 1000,
+			),
+		),
+		from: t.from,
+		to: t.to,
+		value: String(t.value),
+		...(isExternal
+			? {}
+			: {
+					tokenSymbol: t.asset,
+					tokenDecimal: t.rawContract?.decimal
+						? String(parseInt(t.rawContract.decimal, 16))
+						: undefined,
+					contractAddress: t.rawContract?.address ?? undefined,
+				}),
+	}
 }
 
 const rpc = BrowserView.defineRPC<RPC>({
-	maxRequestTime: 20000,
+	maxRequestTime: 200000,
 	handlers: {
 		requests: {
 			getSecret: async ({ name, service }) => {
@@ -154,140 +284,78 @@ const rpc = BrowserView.defineRPC<RPC>({
 			openExternal: async ({ url }) => {
 				Utils.openExternal(url)
 			},
-			fetchTxHistory: async ({
-				address,
-				chainid,
-				page = 1,
-				offset = 1000,
-			}) => {
+			fetchTxHistory: async ({ address, chainid }) => {
 				const key = await Bun.secrets.get({
 					service: 'koins',
-					name: 'etherscan_key',
+					name: 'alchemy_key',
 				})
 				if (!key) return []
 
-				const [nativeTxs, tokenTxs] = await Promise.all([
-					fetchEtherscan(
-						key,
-						chainid,
-						'txlist',
-						address,
-						page,
-						offset,
-					),
-					fetchEtherscan(
-						key,
-						chainid,
-						'tokentx',
-						address,
-						page,
-						offset,
-					),
-				])
+				const all = await fetchAlchemyTransfers(key, chainid, address)
 
 				const addrLower = address.toLowerCase()
-				const byHash = new Map<
-					string,
-					{ native?: any; token: any[] }
-				>()
-				for (const t of nativeTxs) {
+				const byHash = new Map<string, any[]>()
+				for (const t of all) {
 					const h = t.hash
-					if (!byHash.has(h)) byHash.set(h, { token: [] })
-					byHash.get(h)!.native = t
-				}
-				for (const t of tokenTxs) {
-					const h = t.hash
-					if (!byHash.has(h)) byHash.set(h, { token: [] })
-					byHash.get(h)!.token.push(t)
+					if (!byHash.has(h)) byHash.set(h, [])
+					byHash.get(h)!.push(t)
 				}
 
 				const combined: TxEntry[] = []
 
 				for (const [, group] of byHash) {
-					console.log(group)
-					const { native, token } = group
-					const nv = native?.value ?? '0'
+					const external = group.filter(
+						(t: any) => t.category === 'external',
+					)
+					const tokens = group.filter(
+						(t: any) => t.category === 'erc20',
+					)
 
-					const incoming = token.filter(
+					const extOut = external.filter(
+						(t: any) => t.from.toLowerCase() === addrLower,
+					)
+					const extIn = external.filter(
 						(t: any) => t.to.toLowerCase() === addrLower,
 					)
-					const outgoing = token.filter(
+					const tokIn = tokens.filter(
+						(t: any) => t.to.toLowerCase() === addrLower,
+					)
+					const tokOut = tokens.filter(
 						(t: any) => t.from.toLowerCase() === addrLower,
 					)
 
-					if (native && nv !== '0' && incoming.length > 0) {
+					if (extOut.length > 0 && tokIn.length > 0) {
 						combined.push({
-							hash: native.hash,
-							timeStamp: native.timeStamp,
-							from: native.from,
-							to: native.to,
-							value: native.value,
-							input: native.input,
-							isError: native.isError,
-							tokenSymbol: incoming[0].tokenSymbol,
-							tokenDecimal: incoming[0].tokenDecimal,
-							contractAddress: incoming[0].contractAddress,
-							pairedValue: incoming[0].value,
-							pairedSymbol: incoming[0].tokenSymbol,
-							pairedDecimals: incoming[0].tokenDecimal,
+							...mapTransfer(extOut[0]),
+							tokenSymbol: tokIn[0].asset,
+							tokenDecimal: tokIn[0].rawContract?.decimal
+								? String(parseInt(tokIn[0].rawContract.decimal, 16))
+								: undefined,
+							contractAddress:
+								tokIn[0].rawContract?.address ?? undefined,
+							pairedValue: String(tokIn[0].value),
+							pairedSymbol: tokIn[0].asset,
+							pairedDecimals: tokIn[0].rawContract?.decimal
+								? String(parseInt(tokIn[0].rawContract.decimal, 16))
+								: undefined,
 						})
-					} else if (native && nv !== '0') {
+					} else if (extOut.length > 0) {
+						combined.push(mapTransfer(extOut[0]))
+					} else if (extIn.length > 0) {
+						combined.push(mapTransfer(extIn[0]))
+					} else if (tokOut.length > 0 && tokIn.length > 0) {
 						combined.push({
-							hash: native.hash,
-							timeStamp: native.timeStamp,
-							from: native.from,
-							to: native.to,
-							value: native.value,
-							input: native.input,
-							isError: native.isError,
+							...mapTransfer(tokOut[0]),
+							pairedValue: String(tokIn[0].value),
+							pairedSymbol: tokIn[0].asset,
+							pairedDecimals: tokIn[0].rawContract?.decimal
+								? String(parseInt(tokIn[0].rawContract.decimal, 16))
+								: undefined,
 						})
-					} else if (incoming.length > 0 && outgoing.length > 0) {
-						combined.push({
-							hash: incoming[0].hash,
-							timeStamp: incoming[0].timeStamp,
-							from: incoming[0].from,
-							to: incoming[0].to,
-							value: outgoing[0].value,
-							tokenSymbol: outgoing[0].tokenSymbol,
-							tokenDecimal: outgoing[0].tokenDecimal,
-							contractAddress: outgoing[0].contractAddress,
-							pairedValue: incoming[0].value,
-							pairedSymbol: incoming[0].tokenSymbol,
-							pairedDecimals: incoming[0].tokenDecimal,
-						})
-					} else if (outgoing.length > 0) {
-						combined.push({
-							hash: outgoing[0].hash,
-							timeStamp: outgoing[0].timeStamp,
-							from: outgoing[0].from,
-							to: outgoing[0].to,
-							value: outgoing[0].value,
-							tokenSymbol: outgoing[0].tokenSymbol,
-							tokenDecimal: outgoing[0].tokenDecimal,
-							contractAddress: outgoing[0].contractAddress,
-							isError: '0',
-						})
-					} else if (incoming.length > 0) {
-						combined.push({
-							hash: incoming[0].hash,
-							timeStamp: incoming[0].timeStamp,
-							from: incoming[0].from,
-							to: incoming[0].to,
-							value: incoming[0].value,
-							tokenSymbol: incoming[0].tokenSymbol,
-							tokenDecimal: incoming[0].tokenDecimal,
-							contractAddress: incoming[0].contractAddress,
-						})
-					} else if (native) {
-						combined.push({
-							hash: native.hash,
-							timeStamp: native.timeStamp,
-							from: native.from,
-							to: native.to,
-							value: native.value,
-							input: native.input,
-							isError: native.isError,
-						})
+					} else if (tokOut.length > 0) {
+						combined.push(mapTransfer(tokOut[0]))
+					} else if (tokIn.length > 0) {
+						combined.push(mapTransfer(tokIn[0]))
 					}
 				}
 
@@ -296,6 +364,20 @@ const rpc = BrowserView.defineRPC<RPC>({
 				)
 
 				return combined
+			},
+			fetchTokenBalances: async ({ address, chainid }) => {
+				const key = await Bun.secrets.get({
+					service: 'koins',
+					name: 'alchemy_key',
+				})
+				if (!key) return []
+				const result = await fetchAlchemyTokenBalances(
+					key,
+					chainid,
+					address,
+				)
+				// console.log(inspect(result, { depth: null }))
+				return result
 			},
 		},
 		messages: {},
