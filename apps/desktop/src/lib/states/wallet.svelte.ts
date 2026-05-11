@@ -89,7 +89,11 @@ export const networks = [
 
 export type NetworkId = (typeof networks)[number]['id']
 
-export type TokenBalance = { symbol: string; balance: string }
+export type TokenBalance = {
+	symbol: string
+	balance: string
+	address?: string
+}
 
 export const Wallet = () => {
 	let seed = $state('')
@@ -189,9 +193,10 @@ export const Wallet = () => {
 							return {
 								symbol: t.symbol,
 								balance: formatUnits(bal, t.decimals),
+								address: t.address,
 							}
 						} catch {
-							return { symbol: t.symbol, balance: '0' }
+							return { symbol: t.symbol, balance: '0', address: t.address }
 						}
 					}),
 				),
@@ -203,9 +208,10 @@ export const Wallet = () => {
 							return {
 								symbol: t.symbol,
 								balance: formatUnits(bal, t.decimals),
+								address: t.address,
 							}
 						} catch {
-							return { symbol: t.symbol, balance: '0' }
+							return { symbol: t.symbol, balance: '0', address: t.address }
 						}
 					}),
 				),
@@ -294,9 +300,10 @@ export const Wallet = () => {
 						return {
 							symbol: t.symbol,
 							balance: formatUnits(bal, t.decimals),
+							address: t.address,
 						}
 					} catch {
-						return { symbol: t.symbol, balance: '0' }
+						return { symbol: t.symbol, balance: '0', address: t.address }
 					}
 				}),
 			)

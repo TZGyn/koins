@@ -12,10 +12,12 @@
 		"build:stable": "vite build && electrobun build --env=stable"
 	},
 	"dependencies": {
+		"@alchemy/wallet-apis": "^5.0.0-beta.28",
 		"electrobun": "^1.18.1",
 		"ethers": "^6.16.0",
 		"mode-watcher": "^1.1.0",
-		"sv-router": "latest"
+		"sv-router": "latest",
+		"viem": "^2.48.11"
 	},
 	"devDependencies": {
 		"@fontsource-variable/geist-mono": "^5.2.7",

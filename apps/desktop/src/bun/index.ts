@@ -137,7 +137,6 @@ async function fetchEtherscan(
 	})
 	const res = await fetch(`${ETHERSCAN_API}?${params}`)
 	const data = await res.json()
-	console.log(data)
 	if (data.status !== '1') return []
 	return data.result
 }
@@ -205,7 +204,9 @@ const rpc = BrowserView.defineRPC<RPC>({
 				const combined: TxEntry[] = []
 
 				for (const [, group] of byHash) {
+					console.log(group)
 					const { native, token } = group
+					const nv = native?.value ?? '0'
 
 					const incoming = token.filter(
 						(t: any) => t.to.toLowerCase() === addrLower,
@@ -214,7 +215,7 @@ const rpc = BrowserView.defineRPC<RPC>({
 						(t: any) => t.from.toLowerCase() === addrLower,
 					)
 
-					if (native && incoming.length > 0) {
+					if (native && nv !== '0' && incoming.length > 0) {
 						combined.push({
 							hash: native.hash,
 							timeStamp: native.timeStamp,
@@ -230,7 +231,7 @@ const rpc = BrowserView.defineRPC<RPC>({
 							pairedSymbol: incoming[0].tokenSymbol,
 							pairedDecimals: incoming[0].tokenDecimal,
 						})
-					} else if (native) {
+					} else if (native && nv !== '0') {
 						combined.push({
 							hash: native.hash,
 							timeStamp: native.timeStamp,
@@ -254,21 +255,39 @@ const rpc = BrowserView.defineRPC<RPC>({
 							pairedSymbol: incoming[0].tokenSymbol,
 							pairedDecimals: incoming[0].tokenDecimal,
 						})
-					} else {
-						for (const t of token) {
-							const isIn = t.to.toLowerCase() === addrLower
-							combined.push({
-								hash: t.hash,
-								timeStamp: t.timeStamp,
-								from: t.from,
-								to: t.to,
-								value: t.value,
-								tokenSymbol: t.tokenSymbol,
-								tokenDecimal: t.tokenDecimal,
-								contractAddress: t.contractAddress,
-								...(isIn ? {} : { isError: '0' }),
-							})
-						}
+					} else if (outgoing.length > 0) {
+						combined.push({
+							hash: outgoing[0].hash,
+							timeStamp: outgoing[0].timeStamp,
+							from: outgoing[0].from,
+							to: outgoing[0].to,
+							value: outgoing[0].value,
+							tokenSymbol: outgoing[0].tokenSymbol,
+							tokenDecimal: outgoing[0].tokenDecimal,
+							contractAddress: outgoing[0].contractAddress,
+							isError: '0',
+						})
+					} else if (incoming.length > 0) {
+						combined.push({
+							hash: incoming[0].hash,
+							timeStamp: incoming[0].timeStamp,
+							from: incoming[0].from,
+							to: incoming[0].to,
+							value: incoming[0].value,
+							tokenSymbol: incoming[0].tokenSymbol,
+							tokenDecimal: incoming[0].tokenDecimal,
+							contractAddress: incoming[0].contractAddress,
+						})
+					} else if (native) {
+						combined.push({
+							hash: native.hash,
+							timeStamp: native.timeStamp,
+							from: native.from,
+							to: native.to,
+							value: native.value,
+							input: native.input,
+							isError: native.isError,
+						})
 					}
 				}
 

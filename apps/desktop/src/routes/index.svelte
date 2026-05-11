@@ -12,6 +12,23 @@
 	} from '$lib/components/ui/card/index.js'
 	import { formatEther, formatUnits } from 'ethers'
 
+	const CDN = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains'
+
+	const chainDir: Record<string, string> = {
+		eth: 'ethereum',
+		bsc: 'smartchain',
+		polygon: 'polygon',
+	}
+
+	function nativeIcon(id: string) {
+		return `${CDN}/${chainDir[id]}/info/logo.png`
+	}
+
+	function tokenIcon(id: string, address?: string) {
+		if (!address) return ''
+		return `${CDN}/${chainDir[id]}/assets/${address}/logo.png`
+	}
+
 	const SELECTORS: Record<string, string> = {
 		'0x': 'Send',
 		'0xa9059cbb': 'Transfer',
@@ -110,12 +127,24 @@
 							<p class="mt-2 font-medium text-xs">
 								{w.symbol} Balance
 							</p>
-							<p class="font-mono text-lg">{w.balance} {w.symbol}</p>
+							<p class="flex items-center gap-1.5 font-mono text-lg">
+								<img
+									src={nativeIcon(w.network)}
+									alt=""
+									class="size-4 rounded-full"
+									onerror={(e) => (e.target as HTMLElement).style.display = 'none'} />
+								{w.balance} {w.symbol}
+							</p>
 						</div>
 						<div class="mb-4 space-y-1">
 							<p class="font-medium text-xs">Tokens</p>
 							{#each w.tokenBalances as t}
-								<p class="font-mono text-sm">
+								<p class="flex items-center gap-1.5 font-mono text-sm">
+									<img
+										src={tokenIcon(w.network, t.address)}
+										alt=""
+										class="size-4 rounded-full"
+										onerror={(e) => (e.target as HTMLElement).style.display = 'none'} />
 									{Number(t.balance) < 0.0001 && Number(t.balance) > 0
 										? '<0.0001'
 										: Number(t.balance).toFixed(4)}
@@ -175,14 +204,18 @@
 												{txAction(tx, w.address)}
 											</button>
 										</p>
-										<p class="text-muted-foreground font-mono">
+										<p class="flex items-center gap-1 text-muted-foreground font-mono">
 											{#if tx.pairedValue}
+												<img src={nativeIcon(w.network)} alt="" class="size-3.5 rounded-full" onerror={(e) => (e.target as HTMLElement).style.display = 'none'} />
 												{Number(formatEther(tx.value)).toFixed(4)} {w.symbol}
-												<span class="mx-1">→</span>
+												<span class="mx-0.5">→</span>
+												<img src={tokenIcon(w.network, tx.contractAddress)} alt="" class="size-3.5 rounded-full" onerror={(e) => (e.target as HTMLElement).style.display = 'none'} />
 												{Number(formatUnits(tx.pairedValue, Number(tx.pairedDecimals ?? 18))).toFixed(4)} {tx.pairedSymbol}
 											{:else if tx.tokenSymbol}
+												<img src={tokenIcon(w.network, tx.contractAddress)} alt="" class="size-3.5 rounded-full" onerror={(e) => (e.target as HTMLElement).style.display = 'none'} />
 												{Number(formatUnits(tx.value, Number(tx.tokenDecimal ?? 18))).toFixed(4)} {tx.tokenSymbol}
 											{:else}
+												<img src={nativeIcon(w.network)} alt="" class="size-3.5 rounded-full" onerror={(e) => (e.target as HTMLElement).style.display = 'none'} />
 												{Number(formatEther(tx.value)).toFixed(4)} {w.symbol}
 											{/if}
 										</p>
