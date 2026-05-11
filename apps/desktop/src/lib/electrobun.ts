@@ -1,19 +1,16 @@
 import { Electroview } from 'electrobun/view'
 
-export type EtherscanTx = {
-	blockNumber: string
-	timeStamp: string
+export type TxEntry = {
 	hash: string
+	timeStamp: string
 	from: string
 	to: string
 	value: string
-	isError: string
-	txreceipt_status: string
-	gas: string
-	gasPrice: string
-	input: string
-	contractAddress: string
-	gasUsed: string
+	isError?: string
+	tokenSymbol?: string
+	tokenName?: string
+	tokenDecimal?: string
+	contractAddress?: string
 }
 
 type RPC = {
@@ -41,7 +38,13 @@ type RPC = {
 					page?: number
 					offset?: number
 				}
-				response: Promise<EtherscanTx[]>
+				response: Promise<TxEntry[]>
+			}
+			openExternal: {
+				params: {
+					url: string
+				}
+				response: Promise<void>
 			}
 		}
 		messages: {}

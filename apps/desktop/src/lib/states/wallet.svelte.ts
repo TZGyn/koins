@@ -5,11 +5,19 @@ import {
 	formatUnits,
 	Contract,
 } from 'ethers'
-import { electrobun, type EtherscanTx } from '$lib/electrobun'
+import { electrobun, type TxEntry } from '$lib/electrobun'
 
 const ERC20_ABI = [
 	'function balanceOf(address) view returns (uint256)',
+	'function symbol() view returns (string)',
+	'function decimals() view returns (uint8)',
 ]
+
+type DiscoveredToken = {
+	address: string
+	symbol: string
+	decimals: number
+}
 
 export const networks = [
 	{
@@ -35,7 +43,7 @@ export const networks = [
 	{
 		id: 'polygon',
 		name: 'Polygon',
-		rpc: 'https://polygon.drpc.org',
+		rpc: 'https://polygon-bor.publicnode.com',
 		symbol: 'POL',
 		chainid: '137',
 		explorerUrl: 'https://polygonscan.com/tx/',
@@ -94,7 +102,8 @@ export const Wallet = () => {
 	let vaultExists = $state(false)
 	let ready = $state(false)
 	let etherscanKey = $state('')
-	let transactions = $state<EtherscanTx[]>([])
+	let transactions = $state<TxEntry[]>([])
+	let discoveredTokens = $state<DiscoveredToken[]>([])
 
 	const net = () => networks.find((n) => n.id === network)!
 
@@ -125,6 +134,7 @@ export const Wallet = () => {
 
 	const switchNetwork = async (id: NetworkId) => {
 		network = id
+		discoveredTokens = []
 		if (seed) await refresh()
 	}
 
@@ -155,6 +165,7 @@ export const Wallet = () => {
 		error = ''
 		tokenBalances = []
 		transactions = []
+		discoveredTokens = []
 	}
 
 	const refresh = async () => {
@@ -169,6 +180,18 @@ export const Wallet = () => {
 			const [nativeBal, ...tokenBals] = await Promise.all([
 				provider.getBalance(wallet.address),
 				...net().tokens.map(async (t) => {
+					try {
+						const c = new Contract(t.address, ERC20_ABI, provider)
+						const bal = await c.balanceOf(wallet.address)
+						return {
+							symbol: t.symbol,
+							balance: formatUnits(bal, t.decimals),
+						}
+					} catch {
+						return { symbol: t.symbol, balance: '0' }
+					}
+				}),
+				...discoveredTokens.map(async (t) => {
 					try {
 						const c = new Contract(t.address, ERC20_ABI, provider)
 						const bal = await c.balanceOf(wallet.address)
@@ -212,6 +235,68 @@ export const Wallet = () => {
 			chainid: net().chainid,
 		})
 		transactions = txs ?? []
+
+		const seen = new Set(
+			net().tokens.map((t) => t.address.toLowerCase()),
+		)
+		discoveredTokens.forEach((d) => seen.add(d.address.toLowerCase()))
+
+		const newAddrs = [
+			...new Set(
+				(txs ?? [])
+					.filter(
+						(t) =>
+							t.contractAddress &&
+							!seen.has(t.contractAddress.toLowerCase()),
+					)
+					.map((t) => t.contractAddress!.toLowerCase()),
+			),
+		]
+		if (newAddrs.length === 0) return
+
+		const provider = new JsonRpcProvider(net().rpc)
+		const newTokens: DiscoveredToken[] = []
+
+		for (const addr of newAddrs) {
+			try {
+				const c = new Contract(addr, ERC20_ABI, provider)
+				const [symbol, decimals] = await Promise.all([
+					c.symbol(),
+					c.decimals(),
+				])
+				if (
+					typeof symbol !== 'string' ||
+					symbol.length > 12 ||
+					/[\s.:/]/.test(symbol)
+				) {
+					continue
+				}
+				newTokens.push({ address: addr, symbol, decimals })
+			} catch {
+				// not ERC-20, skip
+			}
+		}
+
+		console.log(newTokens)
+
+		if (newTokens.length > 0) {
+			discoveredTokens = [...discoveredTokens, ...newTokens]
+			const newBals = await Promise.all(
+				newTokens.map(async (t) => {
+					try {
+						const c = new Contract(t.address, ERC20_ABI, provider)
+						const bal = await c.balanceOf(address)
+						return {
+							symbol: t.symbol,
+							balance: formatUnits(bal, t.decimals),
+						}
+					} catch {
+						return { symbol: t.symbol, balance: '0' }
+					}
+				}),
+			)
+			tokenBalances = [...tokenBalances, ...newBals]
+		}
 	}
 
 	return {
@@ -268,6 +353,9 @@ export const Wallet = () => {
 		},
 		get transactions() {
 			return transactions
+		},
+		get discoveredTokens() {
+			return discoveredTokens
 		},
 		refresh,
 		init,

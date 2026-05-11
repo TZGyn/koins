@@ -5,6 +5,7 @@ import {
 	Updater,
 	defineElectrobunRPC,
 	type RPCSchema,
+	Utils,
 } from 'electrobun/bun'
 
 const DEV_SERVER_PORT = 5173
@@ -57,20 +58,17 @@ const url = await getMainViewUrl()
 
 const ETHERSCAN_API = 'https://api.etherscan.io/v2/api'
 
-type EtherscanTx = {
-	blockNumber: string
-	timeStamp: string
+type TxEntry = {
 	hash: string
+	timeStamp: string
 	from: string
 	to: string
 	value: string
-	gas: string
-	gasPrice: string
-	isError: string
-	txreceipt_status: string
-	input: string
-	contractAddress: string
-	gasUsed: string
+	isError?: string
+	tokenSymbol?: string
+	tokenName?: string
+	tokenDecimal?: string
+	contractAddress?: string
 }
 
 type RPC = {
@@ -98,7 +96,13 @@ type RPC = {
 					page?: number
 					offset?: number
 				}
-				response: Promise<EtherscanTx[]>
+				response: Promise<TxEntry[]>
+			}
+			openExternal: {
+				params: {
+					url: string
+				}
+				response: Promise<void>
 			}
 		}
 		messages: {}
@@ -108,8 +112,34 @@ type RPC = {
 		messages: {}
 	}>
 }
+
+async function fetchEtherscan(
+	key: string,
+	chainid: string,
+	action: string,
+	address: string,
+	page: number,
+	offset: number,
+): Promise<any[]> {
+	const params = new URLSearchParams({
+		module: 'account',
+		action,
+		address,
+		page: String(page),
+		offset: String(offset),
+		sort: 'desc',
+		apikey: key,
+		chainid,
+	})
+	const res = await fetch(`${ETHERSCAN_API}?${params}`)
+	const data = await res.json()
+	console.log(data)
+	if (data.status !== '1') return []
+	return data.result
+}
+
 const rpc = BrowserView.defineRPC<RPC>({
-	maxRequestTime: 10000,
+	maxRequestTime: 20000,
 	handlers: {
 		requests: {
 			getSecret: async ({ name, service }) => {
@@ -118,38 +148,67 @@ const rpc = BrowserView.defineRPC<RPC>({
 			setSecret: async ({ name, service, value }) => {
 				await Bun.secrets.set({ name, service, value })
 			},
+			openExternal: async ({ url }) => {
+				Utils.openExternal(url)
+			},
 			fetchTxHistory: async ({
 				address,
 				chainid,
 				page = 1,
-				offset = 20,
+				offset = 1000,
 			}) => {
 				const key = await Bun.secrets.get({
 					service: 'koins',
 					name: 'etherscan_key',
 				})
 				if (!key) return []
-				const params = new URLSearchParams({
-					module: 'account',
-					action: 'txlist',
-					address,
-					page: String(page),
-					offset: String(offset),
-					sort: 'desc',
-					apikey: key,
-					chainid,
-				})
-				try {
-					const url = `${ETHERSCAN_API}?${params}`
-					const res = await fetch(url)
-					const data = await res.json()
-					console.log(data)
-					if (data.status !== '1') return []
-					return data.result as EtherscanTx[]
-				} catch (error) {
-					console.log(error)
-					return []
-				}
+
+				const [nativeTxs, tokenTxs] = await Promise.all([
+					fetchEtherscan(
+						key,
+						chainid,
+						'txlist',
+						address,
+						page,
+						offset,
+					),
+					fetchEtherscan(
+						key,
+						chainid,
+						'tokentx',
+						address,
+						page,
+						offset,
+					),
+				])
+
+				const combined: TxEntry[] = [
+					...nativeTxs.map((t: any) => ({
+						hash: t.hash,
+						timeStamp: t.timeStamp,
+						from: t.from,
+						to: t.to,
+						value: t.value,
+						isError: t.isError,
+					})),
+					...tokenTxs.map((t: any) => ({
+						hash: t.hash,
+						timeStamp: t.timeStamp,
+						from: t.from,
+						to: t.to,
+						value: t.value,
+						tokenSymbol: t.tokenSymbol,
+						tokenName: t.tokenName,
+						tokenDecimal: t.tokenDecimal,
+						contractAddress: t.contractAddress,
+					})),
+				]
+
+				combined.sort(
+					(a, b) => Number(b.timeStamp) - Number(a.timeStamp),
+				)
+
+				return combined
 			},
 		},
 		messages: {},
