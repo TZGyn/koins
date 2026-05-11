@@ -64,11 +64,15 @@ type TxEntry = {
 	from: string
 	to: string
 	value: string
+	input?: string
 	isError?: string
 	tokenSymbol?: string
 	tokenName?: string
 	tokenDecimal?: string
 	contractAddress?: string
+	pairedValue?: string
+	pairedSymbol?: string
+	pairedDecimals?: string
 }
 
 type RPC = {
@@ -182,27 +186,91 @@ const rpc = BrowserView.defineRPC<RPC>({
 					),
 				])
 
-				const combined: TxEntry[] = [
-					...nativeTxs.map((t: any) => ({
-						hash: t.hash,
-						timeStamp: t.timeStamp,
-						from: t.from,
-						to: t.to,
-						value: t.value,
-						isError: t.isError,
-					})),
-					...tokenTxs.map((t: any) => ({
-						hash: t.hash,
-						timeStamp: t.timeStamp,
-						from: t.from,
-						to: t.to,
-						value: t.value,
-						tokenSymbol: t.tokenSymbol,
-						tokenName: t.tokenName,
-						tokenDecimal: t.tokenDecimal,
-						contractAddress: t.contractAddress,
-					})),
-				]
+				const addrLower = address.toLowerCase()
+				const byHash = new Map<
+					string,
+					{ native?: any; token: any[] }
+				>()
+				for (const t of nativeTxs) {
+					const h = t.hash
+					if (!byHash.has(h)) byHash.set(h, { token: [] })
+					byHash.get(h)!.native = t
+				}
+				for (const t of tokenTxs) {
+					const h = t.hash
+					if (!byHash.has(h)) byHash.set(h, { token: [] })
+					byHash.get(h)!.token.push(t)
+				}
+
+				const combined: TxEntry[] = []
+
+				for (const [, group] of byHash) {
+					const { native, token } = group
+
+					const incoming = token.filter(
+						(t: any) => t.to.toLowerCase() === addrLower,
+					)
+					const outgoing = token.filter(
+						(t: any) => t.from.toLowerCase() === addrLower,
+					)
+
+					if (native && incoming.length > 0) {
+						combined.push({
+							hash: native.hash,
+							timeStamp: native.timeStamp,
+							from: native.from,
+							to: native.to,
+							value: native.value,
+							input: native.input,
+							isError: native.isError,
+							tokenSymbol: incoming[0].tokenSymbol,
+							tokenDecimal: incoming[0].tokenDecimal,
+							contractAddress: incoming[0].contractAddress,
+							pairedValue: incoming[0].value,
+							pairedSymbol: incoming[0].tokenSymbol,
+							pairedDecimals: incoming[0].tokenDecimal,
+						})
+					} else if (native) {
+						combined.push({
+							hash: native.hash,
+							timeStamp: native.timeStamp,
+							from: native.from,
+							to: native.to,
+							value: native.value,
+							input: native.input,
+							isError: native.isError,
+						})
+					} else if (incoming.length > 0 && outgoing.length > 0) {
+						combined.push({
+							hash: incoming[0].hash,
+							timeStamp: incoming[0].timeStamp,
+							from: incoming[0].from,
+							to: incoming[0].to,
+							value: outgoing[0].value,
+							tokenSymbol: outgoing[0].tokenSymbol,
+							tokenDecimal: outgoing[0].tokenDecimal,
+							contractAddress: outgoing[0].contractAddress,
+							pairedValue: incoming[0].value,
+							pairedSymbol: incoming[0].tokenSymbol,
+							pairedDecimals: incoming[0].tokenDecimal,
+						})
+					} else {
+						for (const t of token) {
+							const isIn = t.to.toLowerCase() === addrLower
+							combined.push({
+								hash: t.hash,
+								timeStamp: t.timeStamp,
+								from: t.from,
+								to: t.to,
+								value: t.value,
+								tokenSymbol: t.tokenSymbol,
+								tokenDecimal: t.tokenDecimal,
+								contractAddress: t.contractAddress,
+								...(isIn ? {} : { isError: '0' }),
+							})
+						}
+					}
+				}
 
 				combined.sort(
 					(a, b) => Number(b.timeStamp) - Number(a.timeStamp),

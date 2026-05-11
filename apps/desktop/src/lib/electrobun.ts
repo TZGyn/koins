@@ -6,11 +6,15 @@ export type TxEntry = {
 	from: string
 	to: string
 	value: string
+	input?: string
 	isError?: string
 	tokenSymbol?: string
 	tokenName?: string
 	tokenDecimal?: string
 	contractAddress?: string
+	pairedValue?: string
+	pairedSymbol?: string
+	pairedDecimals?: string
 }
 
 type RPC = {

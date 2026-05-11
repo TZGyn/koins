@@ -177,35 +177,40 @@ export const Wallet = () => {
 			const wallet = HDNodeWallet.fromPhrase(seed)
 			address = wallet.address
 			const provider = new JsonRpcProvider(net().rpc)
-			const [nativeBal, ...tokenBals] = await Promise.all([
-				provider.getBalance(wallet.address),
-				...net().tokens.map(async (t) => {
-					try {
-						const c = new Contract(t.address, ERC20_ABI, provider)
-						const bal = await c.balanceOf(wallet.address)
-						return {
-							symbol: t.symbol,
-							balance: formatUnits(bal, t.decimals),
-						}
-					} catch {
-						return { symbol: t.symbol, balance: '0' }
-					}
-				}),
-				...discoveredTokens.map(async (t) => {
-					try {
-						const c = new Contract(t.address, ERC20_ABI, provider)
-						const bal = await c.balanceOf(wallet.address)
-						return {
-							symbol: t.symbol,
-							balance: formatUnits(bal, t.decimals),
-						}
-					} catch {
-						return { symbol: t.symbol, balance: '0' }
-					}
-				}),
-			])
+			const nativeBal = await provider.getBalance(wallet.address)
 			balance = formatEther(nativeBal)
-			tokenBalances = tokenBals
+
+			const [hardcodedBals, discoveredBals] = await Promise.all([
+				Promise.all(
+					net().tokens.map(async (t) => {
+						try {
+							const c = new Contract(t.address, ERC20_ABI, provider)
+							const bal = await c.balanceOf(wallet.address)
+							return {
+								symbol: t.symbol,
+								balance: formatUnits(bal, t.decimals),
+							}
+						} catch {
+							return { symbol: t.symbol, balance: '0' }
+						}
+					}),
+				),
+				Promise.all(
+					discoveredTokens.map(async (t) => {
+						try {
+							const c = new Contract(t.address, ERC20_ABI, provider)
+							const bal = await c.balanceOf(wallet.address)
+							return {
+								symbol: t.symbol,
+								balance: formatUnits(bal, t.decimals),
+							}
+						} catch {
+							return { symbol: t.symbol, balance: '0' }
+						}
+					}),
+				),
+			])
+			tokenBalances = [...hardcodedBals, ...discoveredBals]
 			fetchTxHistory()
 		} catch (e) {
 			error =

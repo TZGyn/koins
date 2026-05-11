@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { electrobun } from '$lib/electrobun.js'
+	import { electrobun, type TxEntry } from '$lib/electrobun.js'
 	import { Wallet } from '$lib/states/wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
@@ -11,6 +11,28 @@
 		CardTitle,
 	} from '$lib/components/ui/card/index.js'
 	import { formatEther, formatUnits } from 'ethers'
+
+	const SELECTORS: Record<string, string> = {
+		'0x': 'Send',
+		'0xa9059cbb': 'Transfer',
+		'0x095ea7b3': 'Approve',
+		'0x23b872dd': 'TransferFrom',
+		'0x38ed1739': 'Swap',
+		'0x7ff36ab5': 'Swap',
+		'0x18cbafe5': 'Swap',
+		'0x022c0d9f': 'Swap',
+		'0x3593564c': 'Swap',
+		'0x49404b7c': 'Swap',
+		'0x414bf389': 'Swap',
+	}
+
+	function txAction(tx: TxEntry, address: string): string {
+		if (tx.pairedValue) return 'Swap'
+		const dir = tx.from.toLowerCase() === address.toLowerCase() ? 'Sent' : 'Received'
+		if (tx.tokenSymbol) return `${dir} ${tx.tokenSymbol}`
+		const sel = tx.input?.slice(0, 10) ?? '0x'
+		return SELECTORS[sel] ?? 'Contract Interaction'
+	}
 
 	let w = Wallet()
 	let inputSeed = $state('')
@@ -146,25 +168,22 @@
 								<div
 									class="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-xs">
 									<div class="min-w-0 flex-1 space-y-0.5">
-										<p class="truncate font-mono" title={tx.hash}>
+										<p>
 											<button
 												onclick={() => electrobun.rpc?.request.openExternal({ url: w.explorerUrl + tx.hash })}
-												class="hover:underline cursor-pointer">
-												{tx.hash.slice(0, 10)}...
+												class="hover:underline cursor-pointer font-medium">
+												{txAction(tx, w.address)}
 											</button>
 										</p>
 										<p class="text-muted-foreground font-mono">
-											{#if tx.tokenSymbol}
-												{Number(
-													formatUnits(
-														tx.value,
-														Number(tx.tokenDecimal ?? 18),
-													),
-												).toFixed(4)}
-												{tx.tokenSymbol}
+											{#if tx.pairedValue}
+												{Number(formatEther(tx.value)).toFixed(4)} {w.symbol}
+												<span class="mx-1">→</span>
+												{Number(formatUnits(tx.pairedValue, Number(tx.pairedDecimals ?? 18))).toFixed(4)} {tx.pairedSymbol}
+											{:else if tx.tokenSymbol}
+												{Number(formatUnits(tx.value, Number(tx.tokenDecimal ?? 18))).toFixed(4)} {tx.tokenSymbol}
 											{:else}
-												{Number(formatEther(tx.value)).toFixed(4)}
-												{w.symbol}
+												{Number(formatEther(tx.value)).toFixed(4)} {w.symbol}
 											{/if}
 										</p>
 										<p class="text-muted-foreground">
@@ -178,12 +197,17 @@
 												minute: '2-digit',
 											})}
 										</p>
+										<p class="text-muted-foreground/50 truncate font-mono">
+											<button
+												onclick={() => electrobun.rpc?.request.openExternal({ url: w.explorerUrl + tx.hash })}
+												class="hover:underline cursor-pointer">
+												{tx.hash.slice(0, 10)}...
+											</button>
+										</p>
 									</div>
-									{#if !tx.tokenSymbol}
+									{#if !tx.tokenSymbol || tx.pairedValue}
 										<span
-											class="ml-2 shrink-0 {tx.isError === '0'
-												? 'text-green-500'
-												: 'text-red-500'}">
+											class="ml-2 shrink-0 {tx.isError === '0' ? 'text-green-500' : 'text-red-500'}">
 											{tx.isError === '0' ? '✓' : '✗'}
 										</span>
 									{/if}
