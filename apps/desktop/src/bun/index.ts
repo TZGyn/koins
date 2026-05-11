@@ -8,6 +8,8 @@ import {
 	Utils,
 } from 'electrobun/bun'
 import { inspect } from 'util'
+import { getTokenMetadata, getTokensBalances } from './lib/alchemy'
+import { tryCatch } from '@koins/utils'
 
 const DEV_SERVER_PORT = 5173
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`
@@ -196,46 +198,33 @@ async function fetchAlchemyTokenBalances(
 	chainid: string,
 	address: string,
 ): Promise<TokenBalanceResult[]> {
-	const network = ALCHEMY_NETWORKS[chainid]
-	if (!network) return []
-	const url = `https://${network}.g.alchemy.com/v2/${key}`
-
-	const post = (body: any) =>
-		fetch(url, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(body),
-		}).then((r) => r.json())
-
-	const balRes = await post({
-		jsonrpc: '2.0',
-		id: 0,
-		method: 'alchemy_getTokenBalances',
-		params: [address, 'erc20'],
-	})
-	// console.log(inspect(balRes, { depth: null }))
-
-	const tokens: any[] = balRes.result?.tokenBalances ?? []
-	const nonZero = tokens.filter(
-		(t: any) => t.tokenBalance !== '0x0' && !t.error,
+	const [balRes, balResError] = await tryCatch(
+		getTokensBalances(key, chainid, address),
 	)
+
+	if (balResError) {
+		console.log('Get Tokens Balance', balResError)
+		return []
+	}
+
+	if (!balRes) return []
+
+	const tokens = balRes.result?.tokenBalances ?? []
+	const nonZero = tokens.filter((t) => t.tokenBalance !== '0x0')
 
 	const metas = await Promise.allSettled(
-		nonZero.map((t: any) =>
-			post({
-				jsonrpc: '2.0',
-				id: 0,
-				method: 'alchemy_getTokenMetadata',
-				params: [t.contractAddress],
-			}),
+		nonZero.map((t) =>
+			getTokenMetadata(key, chainid, t.contractAddress),
 		),
 	)
-	console.log(inspect(metas, { depth: null }))
+	if (!metas) return []
 
 	return nonZero
 		.map((t: any, i: number) => {
 			const meta =
-				metas[i].status === 'fulfilled' ? metas[i].value.result : null
+				metas[i].status === 'fulfilled' && metas[i].value
+					? metas[i].value.result
+					: null
 			return {
 				symbol: meta?.symbol ?? 'Unknown',
 				decimals: meta?.decimals ?? 0,
@@ -371,13 +360,17 @@ const rpc = BrowserView.defineRPC<RPC>({
 					name: 'alchemy_key',
 				})
 				if (!key) return []
-				const result = await fetchAlchemyTokenBalances(
-					key,
-					chainid,
-					address,
-				)
-				// console.log(inspect(result, { depth: null }))
-				return result
+				try {
+					const result = await fetchAlchemyTokenBalances(
+						key,
+						chainid,
+						address,
+					)
+					return result
+				} catch (error) {
+					console.log(error)
+					return []
+				}
 			},
 		},
 		messages: {},

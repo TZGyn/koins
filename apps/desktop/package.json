@@ -12,6 +12,7 @@
 		"build:stable": "vite build && electrobun build --env=stable"
 	},
 	"dependencies": {
+		"@koins/utils": "workspace:*",
 		"@alchemy/wallet-apis": "^5.0.0-beta.28",
 		"electrobun": "^1.18.1",
 		"ethers": "^6.16.0",
