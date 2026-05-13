@@ -173,7 +173,7 @@ async function fetchAlchemyTokenBalances(
 	)
 
 	if (balResError) {
-		console.log('Get Tokens Balance', balResError)
+		console.log('Get Tokens Balance Error', balResError)
 		return []
 	}
 

@@ -44,8 +44,6 @@ export const getTransactionHistory = async (
 	const outRes = await outRequest
 	const inRes = await inRequest
 
-	console.log(inspect(outRes, { colors: true, depth: null }))
-
 	const outgoing = outRes.result?.transfers ?? []
 	const incoming = inRes.result?.transfers ?? []
 

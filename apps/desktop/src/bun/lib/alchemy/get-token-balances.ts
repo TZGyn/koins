@@ -28,7 +28,5 @@ export const getTokensBalances = async (
 		params: [address, 'erc20'],
 	})
 
-	// console.log(inspect(balRes, { depth: null, colors: true }))
-
 	return balRes
 }
