@@ -29,7 +29,7 @@ type RPC = {
 					service: string
 					name: string
 				}
-				response: Promise<string | null>
+				response: string | null
 			}
 			setSecret: {
 				params: {
@@ -37,27 +37,27 @@ type RPC = {
 					name: string
 					value: string
 				}
-				response: Promise<void>
+				response: void
 			}
 			fetchTxHistory: {
 				params: {
 					address: string
 					chainid: string
 				}
-				response: Promise<TxEntry[]>
+				response: TxEntry[]
 			}
 			fetchTokenBalances: {
 				params: {
 					address: string
 					chainid: string
 				}
-				response: Promise<TokenBalanceResult[]>
+				response: TokenBalanceResult[]
 			}
 			openExternal: {
 				params: {
 					url: string
 				}
-				response: Promise<void>
+				response: void
 			}
 		}
 		messages: {}
@@ -69,6 +69,7 @@ type RPC = {
 }
 
 const rpc = Electroview.defineRPC<RPC>({
+	maxRequestTime: 10000,
 	handlers: {
 		requests: {},
 		messages: {},

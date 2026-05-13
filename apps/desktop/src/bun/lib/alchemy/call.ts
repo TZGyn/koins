@@ -1,5 +1,7 @@
 import { tryCatch } from '@koins/utils'
 
+const TIMEOUT = 15_000
+
 export const post = async <T>(
 	url: string,
 	body: any,
@@ -9,6 +11,7 @@ export const post = async <T>(
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body),
+			signal: AbortSignal.timeout(TIMEOUT),
 		}),
 	)
 
@@ -16,8 +19,6 @@ export const post = async <T>(
 		console.log(error)
 		throw error
 	}
-
-	console.log('data', await response.text())
 
 	const [data, dataError] = await tryCatch(response.json())
 

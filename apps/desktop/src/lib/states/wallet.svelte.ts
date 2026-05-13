@@ -1,9 +1,6 @@
-import {
-	JsonRpcProvider,
-	HDNodeWallet,
-	formatEther,
-} from 'ethers'
+import { JsonRpcProvider, HDNodeWallet, formatEther } from 'ethers'
 import { electrobun, type TxEntry } from '$lib/electrobun'
+import { tryCatch } from '@koins/utils'
 
 export const networks = [
 	{
@@ -57,21 +54,36 @@ export const Wallet = () => {
 	const net = () => networks.find((n) => n.id === network)!
 
 	const init = async () => {
-		try {
-			const raw = await electrobun.rpc?.request.getSecret({
+		if (!electrobun.rpc) return
+		const [raw, rawError] = await tryCatch(
+			electrobun.rpc.request.getSecret({
 				service: 'koins',
 				name: 'vault',
-			})
-			vaultExists = raw !== null && raw !== undefined
-			const key = await electrobun.rpc?.request.getSecret({
+			}),
+		)
+
+		if (rawError) {
+			console.log('Raw Error:', rawError)
+		}
+
+		vaultExists = raw !== null && raw !== undefined
+		const [key, keyError] = await tryCatch(
+			electrobun.rpc?.request.getSecret({
 				service: 'koins',
 				name: 'alchemy_key',
-			})
-			if (key) apiKey = key
-			if (raw) {
-				seed = raw
-				await refresh()
-			}
+			}),
+		)
+
+		if (keyError) {
+			console.log('key error', keyError)
+		}
+
+		if (key) apiKey = key
+		if (raw) {
+			seed = raw
+			await refresh()
+		}
+		try {
 		} catch (e) {
 			console.log(e)
 			error =
@@ -116,30 +128,39 @@ export const Wallet = () => {
 	}
 
 	const refresh = async () => {
-		if (!seed) return
+		if (!seed || !electrobun.rpc) return
 		loading = true
 		error = ''
 		tokenBalances = []
-		try {
-			const wallet = HDNodeWallet.fromPhrase(seed)
-			address = wallet.address
-			const provider = new JsonRpcProvider(net().rpc)
-			const nativeBal = await provider.getBalance(wallet.address)
-			balance = formatEther(nativeBal)
+		const wallet = HDNodeWallet.fromPhrase(seed)
+		address = wallet.address
+		const provider = new JsonRpcProvider(net().rpc)
+		const [nativeBal, nativeBalError] = await tryCatch(
+			provider.getBalance(wallet.address),
+		)
 
-			const bals = await electrobun.rpc?.request.fetchTokenBalances({
+		if (nativeBalError) {
+			loading = false
+			console.log('Native Balance Error', nativeBalError)
+			return
+		}
+		balance = formatEther(nativeBal)
+
+		const [bals, balsError] = await tryCatch(
+			electrobun.rpc.request.fetchTokenBalances({
 				address: wallet.address,
 				chainid: net().chainid,
-			})
-			tokenBalances = bals ?? []
+			}),
+		)
 
-			fetchTxHistory()
-		} catch (e) {
-			error =
-				e instanceof Error ? e.message : 'Failed to fetch balance'
-		} finally {
-			loading = false
+		if (balsError) {
+			console.log('Bals Error', balsError)
+			error = balsError.message
 		}
+		tokenBalances = bals ?? []
+
+		fetchTxHistory()
+		loading = false
 	}
 
 	const saveApiKey = async (key: string) => {

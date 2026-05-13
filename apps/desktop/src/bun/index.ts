@@ -10,6 +10,7 @@ import {
 import { inspect } from 'util'
 import { getTokenMetadata, getTokensBalances } from './lib/alchemy'
 import { tryCatch } from '@koins/utils'
+import { getTransactionHistory } from './lib/alchemy/get-transaction-history'
 
 const DEV_SERVER_PORT = 5173
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`
@@ -94,7 +95,7 @@ type RPC = {
 					service: string
 					name: string
 				}
-				response: Promise<string | null>
+				response: string | null
 			}
 			setSecret: {
 				params: {
@@ -102,27 +103,27 @@ type RPC = {
 					name: string
 					value: string
 				}
-				response: Promise<void>
+				response: void
 			}
 			fetchTxHistory: {
 				params: {
 					address: string
 					chainid: string
 				}
-				response: Promise<TxEntry[]>
+				response: TxEntry[]
 			}
 			fetchTokenBalances: {
 				params: {
 					address: string
 					chainid: string
 				}
-				response: Promise<TokenBalanceResult[]>
+				response: TokenBalanceResult[]
 			}
 			openExternal: {
 				params: {
 					url: string
 				}
-				response: Promise<void>
+				response: void
 			}
 		}
 		messages: {}
@@ -138,47 +139,16 @@ async function fetchAlchemyTransfers(
 	chainid: string,
 	address: string,
 ): Promise<any[]> {
-	const network = ALCHEMY_NETWORKS[chainid]
-	if (!network) return []
-	const url = `https://${network}.g.alchemy.com/v2/${key}`
+	const transactions = await getTransactionHistory(
+		key,
+		chainid,
+		address,
+		{ maxCount: 10 },
+	)
 
-	const body = (fromAddress?: string, toAddress?: string) => ({
-		jsonrpc: '2.0',
-		id: 0,
-		method: 'alchemy_getAssetTransfers',
-		params: [
-			{
-				...(fromAddress ? { fromAddress } : {}),
-				...(toAddress ? { toAddress } : {}),
-				category: ['external', 'erc20'],
-				withMetadata: true,
-				maxCount: '0x3E8',
-			},
-		],
-	})
+	if (!transactions) return []
 
-	const [outRes, inRes] = await Promise.all([
-		fetch(url, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(body(address, undefined)),
-		}).then((r) => r.json()),
-		fetch(url, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(body(undefined, address)),
-		}).then((r) => r.json()),
-	])
-
-	const outgoing: any[] = outRes.result?.transfers ?? []
-	const incoming: any[] = inRes.result?.transfers ?? []
-
-	const seen = new Set<string>()
-	return [...outgoing, ...incoming].filter((t) => {
-		if (seen.has(t.hash)) return false
-		seen.add(t.hash)
-		return true
-	})
+	return transactions
 }
 
 function formatUnits(balance: string, decimals: number): string {
@@ -261,7 +231,7 @@ function mapTransfer(t: any): TxEntry {
 }
 
 const rpc = BrowserView.defineRPC<RPC>({
-	maxRequestTime: 200000,
+	maxRequestTime: 10000,
 	handlers: {
 		requests: {
 			getSecret: async ({ name, service }) => {
@@ -389,4 +359,4 @@ const win = new BrowserWindow({
 	},
 })
 
-console.log('Svelte app started!')
+console.log('Koins app started!')
