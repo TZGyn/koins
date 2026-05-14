@@ -12,6 +12,7 @@
 		"paths": {
 			"$lib": ["./src/lib"],
 			"$lib/*": ["./src/lib/*"]
-		}
+		},
+		"types": ["bun-types", "node"]
 	}
 }

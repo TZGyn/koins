@@ -2,15 +2,30 @@ import {
 	ApplicationMenu,
 	BrowserView,
 	BrowserWindow,
+	PATHS,
 	Updater,
+	Utils,
 	defineElectrobunRPC,
 	type RPCSchema,
-	Utils,
 } from 'electrobun/bun'
 import { inspect } from 'util'
 import { getTokenMetadata, getTokensBalances } from './lib/alchemy'
 import { tryCatch } from '@koins/utils'
 import { getTransactionHistory } from './lib/alchemy/get-transaction-history'
+import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
+import { db } from './lib/db'
+import { join } from 'path'
+import { getENV } from './lib/get-env'
+
+const env = getENV()
+
+console.log(env)
+
+if (env.env === 'prod') {
+	migrate(db, {
+		migrationsFolder: join(PATHS.RESOURCES_FOLDER, 'app', 'drizzle'),
+	})
+}
 
 const DEV_SERVER_PORT = 5173
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`

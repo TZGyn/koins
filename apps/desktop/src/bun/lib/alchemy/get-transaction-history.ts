@@ -35,6 +35,7 @@ export const getTransactionHistory = async (
 
 	const outRequest = post<{
 		transfers: Transaction[]
+		pageKey: string
 	}>(url, body(address, undefined))
 
 	const inRequest = post<{
