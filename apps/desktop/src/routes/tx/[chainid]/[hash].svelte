@@ -132,7 +132,6 @@
 							<p>{details.type}</p>
 						</div>
 					</div>
-	
 				</div>
 				<div class="mt-4">
 					<Button

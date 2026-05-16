@@ -434,7 +434,7 @@ const rpc = BrowserView.defineRPC<RPC>({
 				if (!key) return null
 				try {
 					const client = getClient(chainid, key)
-					const details = await getTransactionDetails(client, hash)
+					const details = await getTransactionDetails(client, hash, chainid)
 					return details
 				} catch (error) {
 					console.log(error)

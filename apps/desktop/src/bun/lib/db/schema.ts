@@ -17,3 +17,57 @@ export const tokenMetadata = sqliteTable(
 		),
 	}),
 )
+
+export const transactions = sqliteTable(
+	'transactions',
+	{
+		hash: text().notNull(),
+		chainId: text().notNull(),
+		from: text().notNull(),
+		to: text(),
+		value: text().notNull(),
+		blockNumber: text(),
+		blockHash: text(),
+		gas: text().notNull(),
+		gasPrice: text(),
+		maxFeePerGas: text(),
+		maxPriorityFeePerGas: text(),
+		input: text().notNull(),
+		nonce: int().notNull(),
+		transactionIndex: int(),
+		type: text(),
+		v: text(),
+		r: text(),
+		s: text(),
+		yParity: int(),
+	},
+	(table) => ({
+		txUnique: uniqueIndex('tx_unique').on(table.chainId, table.hash),
+	}),
+)
+
+export const transactionReceipts = sqliteTable(
+	'transaction_receipts',
+	{
+		transactionHash: text().notNull(),
+		chainId: text().notNull(),
+		blockHash: text().notNull(),
+		blockNumber: text().notNull(),
+		from: text().notNull(),
+		to: text(),
+		cumulativeGasUsed: text().notNull(),
+		gasUsed: text().notNull(),
+		status: text().notNull(),
+		effectiveGasPrice: text(),
+		contractAddress: text(),
+		type: text().notNull(),
+		transactionIndex: int().notNull(),
+		logsBloom: text(),
+	},
+	(table) => ({
+		receiptUnique: uniqueIndex('receipt_unique').on(
+			table.chainId,
+			table.transactionHash,
+		),
+	}),
+)
