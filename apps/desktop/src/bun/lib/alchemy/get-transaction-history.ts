@@ -2,6 +2,7 @@ import { post } from './call'
 import { getChainID, getURL } from './network'
 import type { Transaction } from './types'
 import { numberToHex } from 'viem'
+import { inspect } from 'util'
 
 export const getTransactionHistory = async (
 	key: string,
@@ -17,6 +18,12 @@ export const getTransactionHistory = async (
 		key,
 	})
 
+	const category = ['external', 'erc20']
+
+	if (chainId !== '56') {
+		category.push('internal')
+	}
+
 	const body = (fromAddress?: string, toAddress?: string) => ({
 		jsonrpc: '2.0',
 		id: 0,
@@ -25,7 +32,7 @@ export const getTransactionHistory = async (
 			{
 				...(fromAddress ? { fromAddress } : {}),
 				...(toAddress ? { toAddress } : {}),
-				category: ['external', 'internal', 'erc20'],
+				category: category,
 				withMetadata: true,
 				maxCount: numberToHex(maxCount),
 			},
@@ -39,7 +46,7 @@ export const getTransactionHistory = async (
 
 	const inRequest = post<{
 		transfers: Transaction[]
-	}>(url, body(address, undefined))
+	}>(url, body(undefined, address))
 
 	const outRes = await outRequest
 	const inRes = await inRequest

@@ -9,7 +9,11 @@ import {
 	type RPCSchema,
 } from 'electrobun/bun'
 import { inspect } from 'util'
-import { getTokenMetadata, getTokensBalances } from './lib/alchemy'
+import {
+	getTokenMetadata,
+	getTokensBalances,
+	type Transaction,
+} from './lib/alchemy'
 import { tryCatch } from '@koins/utils'
 import { getTransactionHistory } from './lib/alchemy/get-transaction-history'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
@@ -178,7 +182,7 @@ async function fetchAlchemyTransfers(
 	key: string,
 	chainid: string,
 	address: string,
-): Promise<any[]> {
+) {
 	const transactions = await getTransactionHistory(
 		key,
 		chainid,
@@ -252,7 +256,7 @@ function mapTransfer(t: any): TxEntry {
 		hash: t.hash,
 		timeStamp: String(
 			Math.floor(
-				new Date(t.metadata.blockTimestamp).getTime() / 1000,
+				new Date(t.metadata?.blockTimestamp).getTime() / 1000,
 			),
 		),
 		from: t.from,
@@ -302,6 +306,7 @@ const rpc = BrowserView.defineRPC<RPC>({
 				const addrLower = address.toLowerCase()
 				const byHash = new Map<string, any[]>()
 				for (const t of all) {
+					if (!t.hash) continue
 					const h = t.hash
 					if (!byHash.has(h)) byHash.set(h, [])
 					byHash.get(h)!.push(t)
