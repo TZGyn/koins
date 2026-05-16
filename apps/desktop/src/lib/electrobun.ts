@@ -9,9 +9,25 @@ export type TxEntry = {
 	tokenSymbol?: string
 	tokenDecimal?: string
 	contractAddress?: string
+	logo?: string
 	pairedValue?: string
 	pairedSymbol?: string
 	pairedDecimals?: string
+	pairedLogo?: string
+}
+
+export type TransactionDetails = {
+	hash: string
+	from: string
+	to: string | null
+	value: string
+	blockNumber: string | null
+	fee: string
+	gasPrice: string
+	status: 'success' | 'reverted'
+	type: string
+	nonce: number
+	input: string
 }
 
 export type TokenBalanceResult = {
@@ -52,6 +68,13 @@ type RPC = {
 					chainid: string
 				}
 				response: TokenBalanceResult[]
+			}
+			fetchTransactionDetails: {
+				params: {
+					hash: string
+					chainid: string
+				}
+				response: TransactionDetails | null
 			}
 			openExternal: {
 				params: {

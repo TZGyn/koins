@@ -2,6 +2,7 @@
 	import { electrobun, type TxEntry } from '$lib/electrobun.js'
 	import { Wallet } from '$lib/states/wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
+	import { navigate } from 'sv-router/generated'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
 	import {
 		Card,
@@ -188,18 +189,18 @@
 					{:else}
 						<div class="max-h-96 space-y-1 overflow-y-auto">
 							{#each w.transactions as tx}
-								<div
-									class="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-xs">
+								<button
+									onclick={() =>
+										navigate('/tx/:chainid/:hash', {
+											params: {
+												chainid: w.chainid,
+												hash: tx.hash,
+											},
+										})}
+									class="flex w-full cursor-pointer items-center justify-between rounded-md bg-muted px-3 py-2 text-xs text-left hover:bg-muted/80 transition-colors">
 									<div class="min-w-0 flex-1 space-y-0.5">
-										<p>
-											<button
-												onclick={() =>
-													electrobun.rpc?.request.openExternal({
-														url: w.explorerUrl + tx.hash,
-													})}
-												class="hover:underline cursor-pointer font-medium">
-												{txAction(tx, w.address)}
-											</button>
+										<p class="font-medium">
+											{txAction(tx, w.address)}
 										</p>
 										<p
 											class="flex items-center gap-1 text-muted-foreground font-mono">
@@ -215,7 +216,7 @@
 												{w.symbol}
 												<span class="mx-0.5">→</span>
 												<img
-													src={tokenIcon(
+													src={tx.pairedLogo || tokenIcon(
 														w.network,
 														tx.contractAddress,
 													)}
@@ -228,7 +229,7 @@
 												{tx.pairedSymbol}
 											{:else if tx.tokenSymbol}
 												<img
-													src={tokenIcon(
+													src={tx.logo || tokenIcon(
 														w.network,
 														tx.contractAddress,
 													)}
@@ -264,17 +265,10 @@
 										</p>
 										<p
 											class="text-muted-foreground/50 truncate font-mono">
-											<button
-												onclick={() =>
-													electrobun.rpc?.request.openExternal({
-														url: w.explorerUrl + tx.hash,
-													})}
-												class="hover:underline cursor-pointer">
-												{tx.hash.slice(0, 10)}...
-											</button>
+											{tx.hash.slice(0, 10)}...
 										</p>
 									</div>
-								</div>
+								</button>
 							{/each}
 						</div>
 					{/if}

@@ -1,6 +1,5 @@
 import { post } from './call'
 import { getChainID, getURL } from './network'
-import { inspect } from 'util'
 import type { Transaction } from './types'
 import { numberToHex } from 'viem'
 

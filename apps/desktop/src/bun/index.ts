@@ -16,6 +16,7 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import { db } from './lib/db'
 import { join } from 'path'
 import { getENV } from './lib/get-env'
+import { getClient, getTransactionDetails } from './lib/viem'
 
 const env = getENV()
 
@@ -88,6 +89,20 @@ type TokenBalanceResult = {
 	logo?: string
 }
 
+type TxDetailsResult = {
+	hash: string
+	from: string
+	to: string | null
+	value: string
+	blockNumber: string | null
+	fee: string
+	gasPrice: string
+	status: 'success' | 'reverted'
+	type: string
+	nonce: number
+	input: string
+}
+
 type TxEntry = {
 	hash: string
 	timeStamp: string
@@ -97,9 +112,12 @@ type TxEntry = {
 	tokenSymbol?: string
 	tokenDecimal?: string
 	contractAddress?: string
+	logo?: string
 	pairedValue?: string
 	pairedSymbol?: string
 	pairedDecimals?: string
+	pairedContractAddress?: string
+	pairedLogo?: string
 }
 
 type RPC = {
@@ -133,6 +151,13 @@ type RPC = {
 					chainid: string
 				}
 				response: TokenBalanceResult[]
+			}
+			fetchTransactionDetails: {
+				params: {
+					hash: string
+					chainid: string
+				}
+				response: TxDetailsResult | null
 			}
 			openExternal: {
 				params: {
@@ -265,7 +290,14 @@ const rpc = BrowserView.defineRPC<RPC>({
 				})
 				if (!key) return []
 
-				const all = await fetchAlchemyTransfers(key, chainid, address)
+				const [all, allError] = await tryCatch(
+					fetchAlchemyTransfers(key, chainid, address),
+				)
+
+				if (allError) {
+					console.log(allError)
+					return []
+				}
 
 				const addrLower = address.toLowerCase()
 				const byHash = new Map<string, any[]>()
@@ -312,6 +344,8 @@ const rpc = BrowserView.defineRPC<RPC>({
 							pairedDecimals: tokIn[0].rawContract?.decimal
 								? String(parseInt(tokIn[0].rawContract.decimal, 16))
 								: undefined,
+							pairedContractAddress:
+								tokIn[0].rawContract?.address ?? undefined,
 						})
 					} else if (extOut.length > 0) {
 						combined.push(mapTransfer(extOut[0]))
@@ -325,12 +359,42 @@ const rpc = BrowserView.defineRPC<RPC>({
 							pairedDecimals: tokIn[0].rawContract?.decimal
 								? String(parseInt(tokIn[0].rawContract.decimal, 16))
 								: undefined,
+							pairedContractAddress:
+								tokIn[0].rawContract?.address ?? undefined,
 						})
 					} else if (tokOut.length > 0) {
 						combined.push(mapTransfer(tokOut[0]))
 					} else if (tokIn.length > 0) {
 						combined.push(mapTransfer(tokIn[0]))
 					}
+				}
+
+				const addrSet = new Set<string>()
+				for (const entry of combined) {
+					if (entry.contractAddress)
+						addrSet.add(entry.contractAddress.toLowerCase())
+					if (entry.pairedContractAddress)
+						addrSet.add(entry.pairedContractAddress.toLowerCase())
+				}
+
+				const logoMap = new Map<string, string>()
+				await Promise.all(
+					Array.from(addrSet).map(async (addr) => {
+						const meta = await getTokenMetadata(key, chainid, addr)
+						if (meta?.result?.logo)
+							logoMap.set(addr, meta.result.logo)
+					}),
+				)
+
+				for (const entry of combined) {
+					if (entry.contractAddress)
+						entry.logo = logoMap.get(
+							entry.contractAddress.toLowerCase(),
+						)
+					if (entry.pairedContractAddress)
+						entry.pairedLogo = logoMap.get(
+							entry.pairedContractAddress.toLowerCase(),
+						)
 				}
 
 				combined.sort(
@@ -355,6 +419,21 @@ const rpc = BrowserView.defineRPC<RPC>({
 				} catch (error) {
 					console.log(error)
 					return []
+				}
+			},
+			fetchTransactionDetails: async ({ hash, chainid }) => {
+				const key = await Bun.secrets.get({
+					service: 'koins',
+					name: 'alchemy_key',
+				})
+				if (!key) return null
+				try {
+					const client = getClient(chainid, key)
+					const details = await getTransactionDetails(client, hash)
+					return details
+				} catch (error) {
+					console.log(error)
+					return null
 				}
 			},
 		},
