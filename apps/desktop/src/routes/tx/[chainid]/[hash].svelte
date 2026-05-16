@@ -132,14 +132,7 @@
 							<p>{details.type}</p>
 						</div>
 					</div>
-					<div class="rounded-md bg-muted p-2">
-						<p class="text-muted-foreground mb-0.5">
-							Input Data (raw)
-						</p>
-						<p class="break-all truncate text-[10px]">
-							{details.input}
-						</p>
-					</div>
+	
 				</div>
 				<div class="mt-4">
 					<Button
