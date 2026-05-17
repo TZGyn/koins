@@ -12,6 +12,7 @@
 	} from '$lib/components/ui/card/index.js'
 	import ArrowDown from '@lucide/svelte/icons/arrow-down'
 	import ArrowUp from '@lucide/svelte/icons/arrow-up'
+	import Fingerprint from '@lucide/svelte/icons/fingerprint'
 	import { navigate } from 'sv-router/generated'
 
 	const w = wallet
@@ -22,6 +23,8 @@
 	let moneroRestoreHeight = $state<number | undefined>(undefined)
 	let moneroSelectedWallet = $state('')
 	let moneroSelectedWalletPass = $state('')
+	let moneroUseBiometric = $state(false)
+	let moneroSettingsPw = $state('')
 
 	let initStarted = false
 	$effect(() => {
@@ -122,32 +125,57 @@
 								{/each}
 							</div>
 							{#if moneroSelectedWallet}
-								<div class="flex gap-2 items-end">
-									<Input
-										type="password"
-										placeholder="Enter password"
-										bind:value={moneroSelectedWalletPass}
-									/>
-									<Button
-										onclick={() => w.moneroOpenExistingWallet(moneroSelectedWallet, moneroSelectedWalletPass)}
-										disabled={w.loading || !moneroSelectedWalletPass}
-									>
-										Open
-									</Button>
+								<div class="flex flex-col gap-2">
+									{#if w.biometricAvailable}
+										<Button
+											onclick={async () => {
+												const ok = await w.unlockWithBiometrics()
+												if (ok) {
+													await w.moneroOpenExistingWallet(moneroSelectedWallet)
+													if (!w.moneroWalletOpen) w.error = 'No password saved for this wallet'
+												}
+											}}
+											disabled={w.loading}>
+											<Fingerprint size={14} />
+											Open with Touch ID
+										</Button>
+									{/if}
+									<div class="flex gap-2 items-end">
+										<Input
+											type="password"
+											placeholder="Enter password"
+											bind:value={moneroSelectedWalletPass}
+										/>
+										<Button
+											onclick={() => w.moneroOpenExistingWallet(moneroSelectedWallet, moneroSelectedWalletPass)}
+											disabled={w.loading || !moneroSelectedWalletPass}
+										>
+											Open
+										</Button>
+									</div>
 								</div>
 							{/if}
 							<hr class="border-muted" />
 						{/if}
 						<p class="text-xs text-muted-foreground">Or create a new wallet:</p>
 						<Input placeholder="Wallet name" bind:value={moneroWalletName} />
-						<Input type="password" placeholder="Password" bind:value={moneroWalletPass} />
+						{#if w.biometricAvailable}
+							<label class="flex items-center gap-2 text-xs cursor-pointer">
+								<input type="checkbox" bind:checked={moneroUseBiometric} />
+								Save password with Touch ID
+							</label>
+						{/if}
+						{#if !moneroUseBiometric}
+							<Input type="password" placeholder="Password" bind:value={moneroWalletPass} />
+						{/if}
 						<div class="flex gap-2">
 							<Button
 								onclick={async () => {
-									const result = await w.moneroCreateWallet(moneroWalletName, moneroWalletPass)
+									const pw = moneroUseBiometric ? crypto.randomUUID() : moneroWalletPass
+									const result = await w.moneroCreateWallet(moneroWalletName, pw, moneroUseBiometric)
 									moneroMnemonic = result.mnemonic
 								}}
-								disabled={w.loading || !moneroWalletName || !moneroWalletPass}>
+								disabled={w.loading || !moneroWalletName || (!moneroUseBiometric && !moneroWalletPass)}>
 								Create Wallet
 							</Button>
 						</div>
@@ -155,9 +183,12 @@
 						<p class="text-xs text-muted-foreground">Restore from seed</p>
 						<Textarea placeholder="Enter your Monero seed phrase (16 or 25 words)" bind:value={moneroMnemonic} />
 						<Input type="number" placeholder="Restore height (optional)" bind:value={moneroRestoreHeight} />
+						{#if !moneroUseBiometric}
+							<Input type="password" placeholder="Password" bind:value={moneroWalletPass} />
+						{/if}
 						<Button
-							onclick={() => w.moneroRestoreWallet(moneroWalletName, moneroWalletPass, moneroMnemonic, moneroRestoreHeight)}
-							disabled={w.loading || !moneroWalletName || !moneroWalletPass || !moneroMnemonic.trim()}>
+							onclick={() => w.moneroRestoreWallet(moneroWalletName, moneroUseBiometric ? crypto.randomUUID() : moneroWalletPass, moneroMnemonic, moneroRestoreHeight, moneroUseBiometric)}
+							disabled={w.loading || !moneroWalletName || (!moneroUseBiometric && !moneroWalletPass) || !moneroMnemonic.trim()}>
 							Restore Wallet
 						</Button>
 					</div>
@@ -209,10 +240,33 @@
 						<Button variant="outline" onclick={() => w.moneroStop()}>
 							Stop
 						</Button>
-						<Button variant="outline" onclick={() => { w.logout(); navigate('/') }}>
+						<Button variant="outline" onclick={async () => { await w.logout(); window.location.href = '/' }}>
 							Logout
 						</Button>
 					</div>
+				</CardContent>
+			</Card>
+
+			<!-- Monero settings -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Settings</CardTitle>
+				</CardHeader>
+				<CardContent>
+					{#if w.biometricAvailable}
+						<p class="text-xs font-medium mb-2">Save wallet password with Touch ID</p>
+						<p class="text-xs text-muted-foreground mb-3">Enter your wallet password to enable biometric unlock</p>
+						<div class="flex gap-2 items-end">
+							<Input type="password" placeholder="Wallet password" bind:value={moneroSettingsPw} />
+							<Button size="sm" onclick={async () => {
+								await w.moneroStorePassword(w.moneroWalletName, moneroSettingsPw)
+								moneroSettingsPw = ''
+								w.error = ''
+							}} disabled={!moneroSettingsPw || w.loading}>Save</Button>
+						</div>
+					{:else}
+						<p class="text-xs text-muted-foreground">Biometric authentication not available on this device</p>
+					{/if}
 				</CardContent>
 			</Card>
 

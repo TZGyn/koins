@@ -261,7 +261,7 @@
 						<Button variant="outline" onclick={() => navigate('/settings')}>
 							<SettingsIcon size={16} />
 						</Button>
-						<Button variant="outline" onclick={() => { w.logout(); navigate('/') }}>
+						<Button variant="outline" onclick={async () => { await w.logout(); navigate('/') }}>
 							Logout
 						</Button>
 					</div>

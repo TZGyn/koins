@@ -142,20 +142,27 @@ export const Wallet = () => {
 		}
 	}
 
-	const logout = () => {
+	const logout = async () => {
+		await moneroStop()
 		accountType = null
 		seed = ''
 		address = ''
 		balance = '0'
 		tokenBalances = []
 		transactions = []
-		moneroWalletOpen = false
-		moneroBalAtomic = '0'
-		moneroUnlockedAtomic = '0'
-		moneroAddress = ''
-		moneroTxs = []
-		moneroWalletName = ''
-		moneroAccounts = []
+	}
+
+	const moneroGetStoredPassword = async (name: string): Promise<string | null> => {
+		if (!electrobun.rpc) return null
+		const [raw] = await tryCatch(
+			electrobun.rpc.request.getSecret({ service: 'koins', name: `monero_pw_${name}` }),
+		)
+		return raw ?? null
+	}
+
+	const moneroStorePassword = async (name: string, password: string) => {
+		if (!electrobun.rpc) return
+		await electrobun.rpc.request.setSecret({ service: 'koins', name: `monero_pw_${name}`, value: password })
 	}
 
 	const switchNetwork = async (id: NetworkId) => {
@@ -334,9 +341,11 @@ export const Wallet = () => {
 		moneroWallets = wallets ?? []
 	}
 
-	const moneroOpenExistingWallet = async (name: string, password: string) => {
+	const moneroOpenExistingWallet = async (name: string, password?: string) => {
 		if (!electrobun.rpc) throw new Error('RPC not available')
-		await electrobun.rpc.request.moneroOpenWallet({ name, password })
+		const pw = password ?? await moneroGetStoredPassword(name)
+		if (!pw) throw new Error('Password required')
+		await electrobun.rpc.request.moneroOpenWallet({ name, password: pw })
 		moneroWalletName = name
 		moneroWalletOpen = true
 		await moneroRefresh()
@@ -415,17 +424,18 @@ export const Wallet = () => {
 		moneroWallets = []
 	}
 
-	const moneroCreateWallet = async (name: string, password: string) => {
+	const moneroCreateWallet = async (name: string, password: string, storePw?: boolean) => {
 		if (!electrobun.rpc) throw new Error('RPC not available')
 		const result = await electrobun.rpc.request.moneroCreateWallet({ name, password })
 		moneroWalletName = name
 		moneroWalletOpen = true
 		moneroAddress = result.address
+		if (storePw) await moneroStorePassword(name, password)
 		await moneroRefresh()
 		return result
 	}
 
-	const moneroRestoreWallet = async (name: string, password: string, mnemonic: string, restoreHeight?: number) => {
+	const moneroRestoreWallet = async (name: string, password: string, mnemonic: string, restoreHeight?: number, storePw?: boolean) => {
 		if (!electrobun.rpc) throw new Error('RPC not available')
 		const result = await electrobun.rpc.request.moneroRestoreWallet({
 			name, password, mnemonic, restoreHeight,
@@ -433,6 +443,7 @@ export const Wallet = () => {
 		moneroWalletName = name
 		moneroWalletOpen = true
 		moneroAddress = result.address
+		if (storePw) await moneroStorePassword(name, password)
 		await moneroRefresh()
 	}
 
@@ -536,6 +547,8 @@ export const Wallet = () => {
 		moneroFetchAccounts,
 		moneroListWallets,
 		moneroOpenExistingWallet,
+		moneroGetStoredPassword,
+		moneroStorePassword,
 	}
 }
 
