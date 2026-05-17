@@ -1,4 +1,4 @@
-import { int, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { int, sqliteTable, text, uniqueIndex, index } from 'drizzle-orm/sqlite-core'
 
 export const tokenMetadata = sqliteTable(
 	'token_metadata',
@@ -69,5 +69,30 @@ export const transactionReceipts = sqliteTable(
 			table.chainId,
 			table.transactionHash,
 		),
+	}),
+)
+
+export const txHistory = sqliteTable(
+	'tx_history',
+	{
+		chainId: text().notNull(),
+		hash: text().notNull(),
+		blockNum: text(),
+		from: text(),
+		to: text(),
+		value: text(),
+		asset: text(),
+		category: text(),
+		rawContractAddress: text(),
+		rawContractDecimal: text(),
+		metadataBlockTimestamp: text(),
+		raw: text().notNull(),
+		syncedAt: text().notNull(),
+	},
+	(table) => ({
+		historyUnique: uniqueIndex('tx_history_unique').on(table.chainId, table.hash, table.category, table.rawContractAddress),
+		blockIdx: index('tx_history_block_idx').on(table.chainId, table.blockNum),
+		fromIdx: index('tx_history_from_idx').on(table.from),
+		toIdx: index('tx_history_to_idx').on(table.to),
 	}),
 )

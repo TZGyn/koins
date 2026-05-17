@@ -1,2 +1,2 @@
 export * from './getClient'
-export * from './get-transaction-details'
+export { getTransactionDetails } from './get-transaction-details'
