@@ -84,32 +84,7 @@
 
 {#if !w.ready}
 	<div class="mx-auto mt-16 max-w-md text-center text-muted-foreground text-sm">Loading...</div>
-{:else if !w.accountType}
-	<div class="mx-auto mt-24 max-w-sm">
-		<Card>
-			<CardHeader class="text-center">
-				<CardTitle>Welcome</CardTitle>
-				<CardDescription>Choose an account type to get started</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<div class="flex flex-col gap-3">
-					<Button
-						onclick={() => w.login('multi')}
-						class="w-full">
-						Multi Coins (ETH / BSC / Polygon)
-					</Button>
-					<Button
-						onclick={() => navigate('/monero')}
-						variant="outline"
-						class="w-full">
-						Monero
-					</Button>
-				</div>
-			</CardContent>
-		</Card>
-	</div>
-{:else if w.accountType === 'multi'}
-	{#if !w.vaultExists}
+{:else if !w.vaultExists}
 		<Card>
 			<CardHeader>
 				<CardTitle>Import Wallet</CardTitle>
@@ -192,11 +167,6 @@
 						{net.name}
 					</button>
 				{/each}
-				<button
-					class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-muted text-muted-foreground hover:bg-muted/80"
-					onclick={() => w.logout()}>
-					Logout
-				</button>
 			</div>
 
 			<Card>
@@ -291,8 +261,8 @@
 						<Button variant="outline" onclick={() => navigate('/settings')}>
 							<SettingsIcon size={16} />
 						</Button>
-						<Button variant="outline" onclick={() => w.lock()}>
-							Lock
+						<Button variant="outline" onclick={() => { w.logout(); navigate('/') }}>
+							Logout
 						</Button>
 					</div>
 				</CardContent>
@@ -417,4 +387,3 @@
 			</Card>
 		</div>
 	{/if}
-{/if}

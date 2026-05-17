@@ -48,7 +48,7 @@
 				<CardContent>
 					<div class="flex flex-col gap-3">
 						<Button
-							onclick={() => navigate('/multicoin')}
+							onclick={async () => { await w.login('multi'); navigate('/multicoin') }}
 							variant="outline"
 							class="w-full">
 							Multi Coins (ETH / BSC / Polygon)
@@ -66,11 +66,6 @@
 				<button
 					class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-primary text-primary-foreground">
 					Monero
-				</button>
-				<button
-					class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-muted text-muted-foreground hover:bg-muted/80"
-					onclick={() => w.logout()}>
-					Logout
 				</button>
 			</div>
 
@@ -213,6 +208,9 @@
 						</Button>
 						<Button variant="outline" onclick={() => w.moneroStop()}>
 							Stop
+						</Button>
+						<Button variant="outline" onclick={() => { w.logout(); navigate('/') }}>
+							Logout
 						</Button>
 					</div>
 				</CardContent>

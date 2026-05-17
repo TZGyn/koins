@@ -132,9 +132,6 @@ export const Wallet = () => {
 	const login = async (type: AccountType) => {
 		accountType = type
 		if (type === 'multi') {
-			if (!seed && vaultExists) {
-				await loadSeed()
-			}
 			if (seed) await switchNetwork(network)
 		} else if (type === 'monero') {
 			if (moneroInstalled && !moneroRunning) {

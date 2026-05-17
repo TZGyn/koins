@@ -33,12 +33,12 @@
 			<CardContent>
 				<div class="flex flex-col gap-3">
 					<Button
-						onclick={() => navigate('/multicoin')}
+						onclick={async () => { await w.login('multi'); navigate('/multicoin') }}
 						class="w-full">
 						Multi Coins (ETH / BSC / Polygon)
 					</Button>
 					<Button
-						onclick={() => navigate('/monero')}
+						onclick={async () => { await w.login('monero'); navigate('/monero') }}
 						variant="outline"
 						class="w-full">
 						Monero
