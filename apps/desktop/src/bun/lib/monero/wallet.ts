@@ -194,6 +194,19 @@ export class MoneroWalletManager {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
 		const accounts = await this.wallet.getAccounts(true) as any[]
 		console.log(`[monero] accounts: ${accounts?.length ?? 0} returned`)
+		if (accounts?.length) {
+			for (const acct of accounts) {
+				const subs = acct.getSubaddresses() ?? []
+				console.log(`[monero]   account ${acct.getIndex()}: balance=${acct.getBalance()?.toString() ?? '0'} subs=${subs.length} primary=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`)
+				const has0 = subs.some((s: any) => s.getIndex() === 0)
+				if (!has0) {
+					console.log(`[monero]     sub 0 (primary): addr=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`)
+				}
+				for (const sub of subs) {
+					console.log(`[monero]     sub ${sub.getIndex()}: addr=${(sub.getAddress() ?? '').substring(0, 16)}... label=${sub.getLabel() ?? ''} balance=${sub.getBalance()?.toString() ?? '0'} used=${sub.getIsUsed()}`)
+				}
+			}
+		}
 		return accounts?.map(a => a.toJson()) ?? []
 	}
 

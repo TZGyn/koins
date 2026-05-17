@@ -310,15 +310,13 @@
 										<div class="space-y-1 border-t border-border pt-2">
 											<p class="text-xs text-muted-foreground mb-1">Subaddresses</p>
 											{#each account.subaddresses as sub}
-												{#if sub.index > 0}
-													<div class="rounded-sm bg-background px-2 py-1.5 text-xs">
-														<div class="flex items-center justify-between">
-															<p class="font-medium">#{sub.index}{sub.label ? ` - ${sub.label}` : ''}</p>
-															<p class="text-muted-foreground">{atomicToXmr(sub.balance)} XMR</p>
-														</div>
-														<p class="font-mono text-muted-foreground/50 truncate">{sub.address}</p>
+												<div class="rounded-sm bg-background px-2 py-1.5 text-xs">
+													<div class="flex items-center justify-between">
+														<p class="font-medium">#{sub.index}{sub.label ? ` - ${sub.label}` : ''}</p>
+														<p class="text-muted-foreground">{atomicToXmr(sub.balance)} XMR</p>
 													</div>
-												{/if}
+													<p class="font-mono text-muted-foreground/50 truncate">{sub.address}</p>
+												</div>
 											{/each}
 										</div>
 									{/if}
