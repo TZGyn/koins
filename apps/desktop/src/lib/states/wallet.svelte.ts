@@ -112,19 +112,8 @@ export const Wallet = () => {
 		}
 
 		if (key) apiKey = key
-		if (raw) {
-			seed = raw
-			await refresh()
-		}
 		await checkBiometric()
-		try {
-		} catch (e) {
-			console.log(e)
-			error =
-				e instanceof Error ? e.message : 'Failed to access keychain'
-		} finally {
-			ready = true
-		}
+		ready = true
 	}
 
 	const switchNetwork = async (id: NetworkId) => {
