@@ -77,6 +77,7 @@ export const Wallet = () => {
 	let moneroTxs = $state<MoneroTxEntry[]>([])
 	let moneroInstalled = $state(false)
 	let moneroDownloading = $state(false)
+	let biometricAvailable = $state(false)
 	let moneroWalletName = $state('')
 	let moneroAccounts = $state<MoneroAccountEntry[]>([])
 	let moneroWallets = $state<string[]>([])
@@ -115,6 +116,7 @@ export const Wallet = () => {
 			seed = raw
 			await refresh()
 		}
+		await checkBiometric()
 		try {
 		} catch (e) {
 			console.log(e)
@@ -157,6 +159,32 @@ export const Wallet = () => {
 		} finally {
 			loading = false
 		}
+	}
+
+	const checkBiometric = async () => {
+		if (!electrobun.rpc) return
+		const [ok] = await tryCatch(
+			electrobun.rpc.request.biometricCanAuth({}),
+		)
+		biometricAvailable = ok === true
+	}
+
+	const unlockWithBiometrics = async () => {
+		if (!electrobun.rpc) return false
+		const [authed] = await tryCatch(
+			electrobun.rpc.request.biometricAuth({ reason: 'Unlock wallet' }),
+		)
+		if (!authed) return false
+		const [raw] = await tryCatch(
+			electrobun.rpc.request.getSecret({
+				service: 'koins',
+				name: 'vault',
+			}),
+		)
+		if (!raw) return false
+		seed = raw
+		await refresh()
+		return true
 	}
 
 	const lock = () => {
@@ -399,9 +427,11 @@ export const Wallet = () => {
 		get moneroWalletName() { return moneroWalletName },
 		get moneroAccounts() { return moneroAccounts },
 		get moneroWallets() { return moneroWallets },
+		get biometricAvailable() { return biometricAvailable },
 		refresh,
 		init,
 		lock,
+		unlockWithBiometrics,
 		saveVault,
 		switchNetwork,
 		saveApiKey,

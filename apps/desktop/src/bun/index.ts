@@ -27,6 +27,7 @@ import {
 	getBinaryDir,
 	MoneroWalletManager,
 } from './lib/monero'
+import { canPromptTouchID, promptTouchID } from './lib/biometric'
 
 const env = getENV()
 
@@ -133,6 +134,14 @@ type TxEntry = {
 type RPC = {
 	bun: RPCSchema<{
 		requests: {
+			biometricCanAuth: {
+				params: {}
+				response: boolean
+			}
+			biometricAuth: {
+				params: { reason: string }
+				response: boolean
+			}
 			getSecret: {
 				params: {
 					service: string
@@ -357,6 +366,20 @@ const rpc = BrowserView.defineRPC<RPC>({
 	maxRequestTime: 120000,
 	handlers: {
 		requests: {
+			biometricCanAuth: async () => {
+				try {
+					return canPromptTouchID()
+				} catch {
+					return false
+				}
+			},
+			biometricAuth: async ({ reason }) => {
+				try {
+					return promptTouchID(reason)
+				} catch {
+					return false
+				}
+			},
 			getSecret: async ({ name, service }) => {
 				return await Bun.secrets.get({ name, service })
 			},

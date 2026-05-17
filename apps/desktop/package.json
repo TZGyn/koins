@@ -3,15 +3,16 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"start": "vite build && electrobun dev",
-		"dev": "electrobun dev --watch",
+		"start": "bun run build:native && vite build && electrobun dev",
+		"dev": "bun run build:native && electrobun dev --watch",
 		"dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
 		"hmr": "vite --port 5173",
-		"build:dev": "vite build && electrobun build",
-		"build:canary": "vite build && electrobun build --env=canary",
-		"build:stable": "vite build && electrobun build --env=stable",
+		"build:dev": "bun run build:native && vite build && electrobun build",
+		"build:canary": "bun run build:native && vite build && electrobun build --env=canary",
+		"build:stable": "bun run build:native && vite build && electrobun build --env=stable",
 		"db:push": "bun x --bun drizzle-kit push",
-		"db:generate": "drizzle-kit generate"
+		"db:generate": "drizzle-kit generate",
+		"build:native": "swiftc -O -o src/bun/native/biometric-helper src/bun/native/biometric-helper.swift"
 	},
 	"dependencies": {
 		"@alchemy/wallet-apis": "^5.0.0-beta.28",

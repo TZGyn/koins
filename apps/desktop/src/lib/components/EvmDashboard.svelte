@@ -14,6 +14,7 @@
 	import ArrowDown from '@lucide/svelte/icons/arrow-down'
 	import ArrowUp from '@lucide/svelte/icons/arrow-up'
 	import QrCodeIcon from '@lucide/svelte/icons/qr-code'
+	import Fingerprint from '@lucide/svelte/icons/fingerprint'
 	import * as Dialog from '$lib/components/ui/dialog/index.js'
 	import QRCode from 'qrcode'
 
@@ -101,8 +102,26 @@
 	</Card>
 {:else if w.isLocked}
 	<Card>
+		<CardHeader>
+			<CardTitle>Wallet Locked</CardTitle>
+			<CardDescription>Your seed is stored in the system keychain</CardDescription>
+		</CardHeader>
 		<CardContent>
-			<p class="text-muted-foreground text-xs">Unlocking...</p>
+			{#if w.biometricAvailable}
+				<Button
+					onclick={() => w.unlockWithBiometrics()}
+					disabled={w.loading}>
+					<Fingerprint size={16} />
+					{w.loading ? 'Unlocking...' : 'Unlock with Touch ID'}
+				</Button>
+			{:else}
+				<p class="text-muted-foreground text-xs">
+					Touch ID not available on this device
+				</p>
+			{/if}
+			{#if w.error}
+				<p class="mt-3 text-red-500">{w.error}</p>
+			{/if}
 		</CardContent>
 	</Card>
 {:else}
