@@ -623,6 +623,13 @@ const rpc = BrowserView.defineRPC<RPC>({
 				console.log(`[rpc] moneroGetAccounts: ${accounts.length} accounts`)
 				return accounts
 			},
+			moneroListWallets: async () => {
+				console.log('[rpc] moneroListWallets')
+				if (!moneroManager) throw new Error('Monero wallet RPC not started')
+				const wallets = moneroManager.listWallets()
+				console.log(`[rpc] moneroListWallets: ${wallets.join(', ') || 'none'}`)
+				return wallets
+			},
 		},
 		messages: {},
 	},

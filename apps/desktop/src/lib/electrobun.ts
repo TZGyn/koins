@@ -196,6 +196,10 @@ type RPC = {
 				params: {}
 				response: MoneroAccountEntry[]
 			}
+			moneroListWallets: {
+				params: {}
+				response: string[]
+			}
 		}
 		messages: {}
 	}

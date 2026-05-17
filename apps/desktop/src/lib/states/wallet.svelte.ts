@@ -79,6 +79,7 @@ export const Wallet = () => {
 	let moneroDownloading = $state(false)
 	let moneroWalletName = $state('')
 	let moneroAccounts = $state<MoneroAccountEntry[]>([])
+	let moneroWallets = $state<string[]>([])
 
 	const net = () => networks.find((n) => n.id === network)!
 
@@ -132,6 +133,7 @@ export const Wallet = () => {
 				await moneroStart()
 				await checkMoneroStatus()
 			}
+			await moneroListWallets()
 		} else if (seed) {
 			await refresh()
 		}
@@ -215,6 +217,22 @@ export const Wallet = () => {
 		return true
 	}
 
+	const moneroListWallets = async () => {
+		if (!electrobun.rpc) return
+		const [wallets] = await tryCatch(
+			electrobun.rpc.request.moneroListWallets({}),
+		)
+		moneroWallets = wallets ?? []
+	}
+
+	const moneroOpenExistingWallet = async (name: string, password: string) => {
+		if (!electrobun.rpc) throw new Error('RPC not available')
+		await electrobun.rpc.request.moneroOpenWallet({ name, password })
+		moneroWalletName = name
+		moneroWalletOpen = true
+		await moneroRefresh()
+	}
+
 	const saveApiKey = async (key: string) => {
 		await electrobun.rpc?.request.setSecret({
 			service: 'koins',
@@ -285,6 +303,7 @@ export const Wallet = () => {
 		moneroUnlockedAtomic = '0'
 		moneroTxs = []
 		moneroAccounts = []
+		moneroWallets = []
 	}
 
 	const moneroCreateWallet = async (name: string, password: string) => {
@@ -379,6 +398,7 @@ export const Wallet = () => {
 		get moneroDownloading() { return moneroDownloading },
 		get moneroWalletName() { return moneroWalletName },
 		get moneroAccounts() { return moneroAccounts },
+		get moneroWallets() { return moneroWallets },
 		refresh,
 		init,
 		lock,
@@ -395,5 +415,7 @@ export const Wallet = () => {
 		moneroOpenWallet,
 		moneroRefresh,
 		moneroFetchAccounts,
+		moneroListWallets,
+		moneroOpenExistingWallet,
 	}
 }

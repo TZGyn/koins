@@ -1,6 +1,7 @@
 import { MoneroWalletRpc, MoneroRpcConnection, connectToWalletRpc, connectToDaemonRpc } from 'monero-ts'
 import { getBinaryPath, getWalletDir } from './binary'
-import { existsSync } from 'fs'
+import { existsSync, readdirSync } from 'fs'
+import { join } from 'path'
 
 const DEFAULT_DAEMON = 'xmr-node.cakewallet.com:18081'
 
@@ -16,6 +17,17 @@ export class MoneroWalletManager {
 		this.rpcPort = 28084
 		this.rpcUser = 'koins'
 		this.rpcPassword = crypto.randomUUID()
+	}
+
+	listWallets(): string[] {
+		const dir = getWalletDir()
+		if (!existsSync(dir)) return []
+		const files = readdirSync(dir)
+		const wallets = files
+			.filter(f => f.endsWith('.keys'))
+			.map(f => f.replace(/\.keys$/, ''))
+		console.log(`[monero] wallets on disk: ${wallets.join(', ') || 'none'}`)
+		return wallets
 	}
 
 	private get rpcUrl() {

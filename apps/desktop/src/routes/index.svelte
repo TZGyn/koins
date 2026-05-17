@@ -50,6 +50,8 @@
 	let moneroWalletPass = $state('')
 	let moneroMnemonic = $state('')
 	let moneroRestoreHeight = $state<number | undefined>(undefined)
+	let moneroSelectedWallet = $state('')
+	let moneroSelectedWalletPass = $state('')
 
 	$effect(() => {
 		w.init()
@@ -137,10 +139,44 @@
 					<Card>
 						<CardHeader>
 							<CardTitle>Monero Wallet</CardTitle>
-							<CardDescription>Create a new wallet or restore an existing one</CardDescription>
+							<CardDescription>
+								{w.moneroWallets.length > 0
+									? `${w.moneroWallets.length} wallet${w.moneroWallets.length > 1 ? 's' : ''} found on disk`
+									: 'No existing wallets found'}
+							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<div class="flex flex-col gap-3">
+								{#if w.moneroWallets.length > 0}
+									<p class="text-xs font-medium">Select a wallet to open:</p>
+									<div class="flex flex-wrap gap-2">
+										{#each w.moneroWallets as name}
+											<Button
+												variant={moneroSelectedWallet === name ? 'default' : 'outline'}
+												onclick={() => { moneroSelectedWallet = name; moneroSelectedWalletPass = '' }}
+											>
+												{name}
+											</Button>
+										{/each}
+									</div>
+									{#if moneroSelectedWallet}
+										<div class="flex gap-2 items-end">
+											<Input
+												type="password"
+												placeholder="Enter password"
+												bind:value={moneroSelectedWalletPass}
+											/>
+											<Button
+												onclick={() => w.moneroOpenExistingWallet(moneroSelectedWallet, moneroSelectedWalletPass)}
+												disabled={w.loading || !moneroSelectedWalletPass}
+											>
+												Open
+											</Button>
+										</div>
+									{/if}
+									<hr class="border-muted" />
+								{/if}
+								<p class="text-xs text-muted-foreground">Or create a new wallet:</p>
 								<Input placeholder="Wallet name" bind:value={moneroWalletName} />
 								<Input type="password" placeholder="Password" bind:value={moneroWalletPass} />
 								<div class="flex gap-2">
@@ -151,12 +187,6 @@
 										}}
 										disabled={w.loading || !moneroWalletName || !moneroWalletPass}>
 										Create Wallet
-									</Button>
-									<Button
-										variant="outline"
-										onclick={() => w.moneroOpenWallet(moneroWalletName, moneroWalletPass)}
-										disabled={w.loading || !moneroWalletName || !moneroWalletPass}>
-										Open
 									</Button>
 								</div>
 								<hr class="border-muted" />
