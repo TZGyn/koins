@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { wallet, atomicToXmr, type NetworkId } from '$lib/states/wallet.svelte.js'
+	import { wallet, atomicToXmr } from '$lib/states/wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
 	import { Input } from '$lib/components/ui/input/index.js'
@@ -16,11 +16,6 @@
 
 	const w = wallet
 
-	function navTarget(id: NetworkId): string {
-		if (id === 'eth') return '/'
-		return `/${id}`
-	}
-
 	let moneroWalletName = $state('')
 	let moneroWalletPass = $state('')
 	let moneroMnemonic = $state('')
@@ -32,28 +27,54 @@
 	$effect(() => {
 		if (!initStarted) {
 			initStarted = true
-			w.init().then(() => w.switchNetwork('monero'))
+			w.init().then(async () => {
+				if (w.accountType === 'monero') return
+				await w.login('monero')
+			})
 		}
 	})
 </script>
 
 <div class="mx-auto mt-16 max-w-md">
 	<div class="flex flex-col gap-4">
-		<div class="flex gap-1 justify-center" role="group">
-			{#each w.networks as net}
+		{#if !w.ready}
+			<p class="text-center text-muted-foreground text-sm mt-8">Loading...</p>
+		{:else if !w.accountType}
+			<Card>
+				<CardHeader class="text-center">
+					<CardTitle>Welcome</CardTitle>
+					<CardDescription>Choose an account type to get started</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div class="flex flex-col gap-3">
+						<Button
+							onclick={() => navigate('/multicoin')}
+							variant="outline"
+							class="w-full">
+							Multi Coins (ETH / BSC / Polygon)
+						</Button>
+						<Button
+							onclick={() => w.login('monero')}
+							class="w-full">
+							Monero
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
+		{:else if w.accountType === 'monero'}
+			<div class="flex items-center justify-center gap-1 flex-wrap" role="group">
 				<button
-					class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors {w.network ===
-					net.id
-						? 'bg-primary text-primary-foreground'
-						: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
-					onclick={() => navigate(navTarget(net.id))}>
-					{net.name}
+					class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-primary text-primary-foreground">
+					Monero
 				</button>
-			{/each}
-		</div>
+				<button
+					class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-muted text-muted-foreground hover:bg-muted/80"
+					onclick={() => w.logout()}>
+					Logout
+				</button>
+			</div>
 
-		<!-- MONERO DASHBOARD -->
-		{#if w.moneroDownloading}
+			{#if w.moneroDownloading}
 			<Card>
 				<CardContent>
 					<p class="text-muted-foreground text-xs">Downloading Monero binary (70MB)...</p>
@@ -276,5 +297,6 @@
 				</CardContent>
 			</Card>
 		{/if}
+	{/if}
 	</div>
 </div>

@@ -51,7 +51,7 @@
 	<Button
 		variant="outline"
 		size="sm"
-		onclick={() => navigate('/')}
+		onclick={() => navigate('/multicoin')}
 		class="mb-4">
 		&larr; Back
 	</Button>

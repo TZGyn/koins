@@ -27,15 +27,16 @@ export const networks = [
 		chainid: '1',
 		explorerUrl: 'https://etherscan.io/tx/',
 	},
-	{
-		id: 'monero',
-		name: 'Monero',
-		rpc: '',
-		symbol: 'XMR',
-		chainid: '',
-		explorerUrl: 'https://moneroblocks.info/tx/',
-	},
 ] as const
+
+const moneroNetwork = {
+	id: 'monero',
+	name: 'Monero',
+	rpc: '',
+	symbol: 'XMR',
+	chainid: '',
+	explorerUrl: 'https://moneroblocks.info/tx/',
+} as const
 
 export type NetworkId = (typeof networks)[number]['id']
 
@@ -53,7 +54,10 @@ export const atomicToXmr = (atomic: string): string => {
 	return frac ? `${whole}.${frac}` : `${whole}`
 }
 
+export type AccountType = 'multi' | 'monero'
+
 export const Wallet = () => {
+	let accountType = $state<AccountType | null>(null)
 	let seed = $state('')
 	let address = $state('')
 	let balance = $state('0')
@@ -94,8 +98,6 @@ export const Wallet = () => {
 		return { salt: s, hash }
 	}
 
-	const isMonero = () => network === 'monero'
-
 	const init = async () => {
 		if (!electrobun.rpc) return
 		const [raw, rawError] = await tryCatch(
@@ -122,20 +124,46 @@ export const Wallet = () => {
 		)
 		if (ph) passwordHash = ph
 
+		await checkMoneroStatus()
 		await checkBiometric()
 		ready = true
 	}
 
-	const switchNetwork = async (id: NetworkId) => {
-		network = id
-		if (id === 'monero') {
-			await checkMoneroStatus()
+	const login = async (type: AccountType) => {
+		accountType = type
+		if (type === 'multi') {
+			if (!seed && vaultExists) {
+				await loadSeed()
+			}
+			if (seed) await switchNetwork(network)
+		} else if (type === 'monero') {
 			if (moneroInstalled && !moneroRunning) {
 				await moneroStart()
 				await checkMoneroStatus()
 			}
 			await moneroListWallets()
-		} else if (seed) {
+		}
+	}
+
+	const logout = () => {
+		accountType = null
+		seed = ''
+		address = ''
+		balance = '0'
+		tokenBalances = []
+		transactions = []
+		moneroWalletOpen = false
+		moneroBalAtomic = '0'
+		moneroUnlockedAtomic = '0'
+		moneroAddress = ''
+		moneroTxs = []
+		moneroWalletName = ''
+		moneroAccounts = []
+	}
+
+	const switchNetwork = async (id: NetworkId) => {
+		network = id
+		if (seed) {
 			await refresh()
 		}
 	}
@@ -448,8 +476,9 @@ export const Wallet = () => {
 
 	return {
 		get isLocked() {
-			return vaultExists && !seed && network !== 'monero'
+			return accountType === 'multi' && vaultExists && !seed
 		},
+		get accountType() { return accountType },
 		get seed() { return seed },
 		get address() { return address },
 		get balance() { return balance },
@@ -464,9 +493,10 @@ export const Wallet = () => {
 		get vaultExists() { return vaultExists },
 		get ready() { return ready },
 		get networks() { return networks },
+		get moneroNetwork() { return moneroNetwork },
+		get evmNetworks() { return networks },
 		get apiKey() { return apiKey },
 		get transactions() { return transactions },
-		isMonero,
 		get moneroRunning() { return moneroRunning },
 		get moneroWalletOpen() { return moneroWalletOpen },
 		get moneroConnected() { return moneroConnected },
@@ -487,6 +517,8 @@ export const Wallet = () => {
 		get passwordSet() { return !!passwordHash },
 		refresh,
 		init,
+		login,
+		logout,
 		lock,
 		unlockWithBiometrics,
 		unlockWithPassword,
