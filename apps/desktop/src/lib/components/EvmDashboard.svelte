@@ -13,6 +13,8 @@
 	} from '$lib/components/ui/card/index.js'
 	import ArrowDown from '@lucide/svelte/icons/arrow-down'
 	import ArrowUp from '@lucide/svelte/icons/arrow-up'
+	import QrCodeIcon from '@lucide/svelte/icons/qr-code'
+	import * as Dialog from '$lib/components/ui/dialog/index.js'
 	import QRCode from 'qrcode'
 
 	let { networkId }: { networkId: NetworkId } = $props()
@@ -49,9 +51,10 @@
 	let inputSeed = $state('')
 	let apiKeyInput = $state('')
 	let qrDataUrl = $state('')
+	let qrDialogOpen = $state(false)
 	$effect(() => {
 		if (w.address) {
-			QRCode.toDataURL(w.address, { width: 120, margin: 1 }).then(
+			QRCode.toDataURL(w.address, { width: 256, margin: 1 }).then(
 				(url) => (qrDataUrl = url),
 			)
 		}
@@ -132,19 +135,34 @@
 				{#if w.address}
 					<div class="mb-4 space-y-1">
 						<p class="font-medium text-xs">Address</p>
-						<div class="flex items-start gap-3">
+						<div class="flex items-start gap-2">
 							<p class="font-mono text-xs break-all flex-1">{w.address}</p>
 							{#if qrDataUrl}
-								<div class="relative size-20 shrink-0">
-									<img
-										src={qrDataUrl}
-										alt="QR code"
-										class="size-20 rounded-md border" />
-									<img
-										src={nativeIcon(w.network)}
-										alt=""
-										class="absolute left-1/2 top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-0.5" />
-								</div>
+								<Dialog.Root bind:open={qrDialogOpen}>
+									<Dialog.Trigger>
+										<button
+											class="shrink-0 cursor-pointer rounded-md border p-1.5 text-muted-foreground hover:bg-muted transition-colors">
+											<QrCodeIcon size={16} />
+										</button>
+									</Dialog.Trigger>
+									<Dialog.Content>
+										<div class="flex flex-col items-center gap-3 py-4">
+											<div class="relative">
+												<img
+													src={qrDataUrl}
+													alt="QR code"
+													class="size-52 rounded-md" />
+												<img
+													src={nativeIcon(w.network)}
+													alt=""
+													class="absolute left-1/2 top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-0.5" />
+											</div>
+											<p class="font-mono text-xs break-all text-center max-w-64">
+												{w.address}
+											</p>
+										</div>
+									</Dialog.Content>
+								</Dialog.Root>
 							{/if}
 						</div>
 						<p class="mt-2 font-medium text-xs">
