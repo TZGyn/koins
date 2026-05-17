@@ -3,5 +3,5 @@
 </script>
 
 <div class="mx-auto mt-16 max-w-md">
-	<EvmDashboard networkId="eth" />
+	<EvmDashboard networkId="bsc" />
 </div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { wallet, atomicToXmr } from '$lib/states/wallet.svelte.js'
+	import { wallet, atomicToXmr, type NetworkId } from '$lib/states/wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
 	import { Input } from '$lib/components/ui/input/index.js'
@@ -16,12 +16,25 @@
 
 	const w = wallet
 
+	function navTarget(id: NetworkId): string {
+		if (id === 'eth') return '/'
+		return `/${id}`
+	}
+
 	let moneroWalletName = $state('')
 	let moneroWalletPass = $state('')
 	let moneroMnemonic = $state('')
 	let moneroRestoreHeight = $state<number | undefined>(undefined)
 	let moneroSelectedWallet = $state('')
 	let moneroSelectedWalletPass = $state('')
+
+	let initStarted = false
+	$effect(() => {
+		if (!initStarted) {
+			initStarted = true
+			w.init().then(() => w.switchNetwork('monero'))
+		}
+	})
 </script>
 
 <div class="mx-auto mt-16 max-w-md">
@@ -33,7 +46,7 @@
 					net.id
 						? 'bg-primary text-primary-foreground'
 						: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
-					onclick={() => { w.switchNetwork(net.id); if (net.id !== 'monero') navigate('/') }}>
+					onclick={() => navigate(navTarget(net.id))}>
 					{net.name}
 				</button>
 			{/each}

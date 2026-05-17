@@ -58,7 +58,7 @@ export const Wallet = () => {
 	let address = $state('')
 	let balance = $state('0')
 	let tokenBalances = $state<TokenBalance[]>([])
-	let network = $state<NetworkId>('bsc')
+	let network = $state<NetworkId>('eth')
 	let loading = $state(false)
 	let error = $state('')
 	let vaultExists = $state(false)
