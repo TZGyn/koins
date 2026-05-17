@@ -28,6 +28,13 @@ import {
 	MoneroWalletManager,
 } from './lib/monero'
 import { canPromptTouchID, promptTouchID } from './lib/biometric'
+import { sqlite } from './lib/sqlite'
+import {
+	tokenMetadata,
+	transactions,
+	transactionReceipts,
+	txHistory,
+} from './lib/db/schema'
 
 const env = getENV()
 
@@ -134,6 +141,10 @@ type TxEntry = {
 type RPC = {
 	bun: RPCSchema<{
 		requests: {
+			resetApp: {
+				params: {}
+				response: boolean
+			}
 			biometricCanAuth: {
 				params: {}
 				response: boolean
@@ -366,6 +377,24 @@ const rpc = BrowserView.defineRPC<RPC>({
 	maxRequestTime: 120000,
 	handlers: {
 		requests: {
+			resetApp: async () => {
+				try {
+					await Promise.all([
+						Bun.secrets.delete({ service: 'koins', name: 'vault' }),
+						Bun.secrets.delete({ service: 'koins', name: 'vault_password' }),
+						Bun.secrets.delete({ service: 'koins', name: 'alchemy_key' }),
+					])
+					sqlite.run('DELETE FROM token_metadata')
+					sqlite.run('DELETE FROM transactions')
+					sqlite.run('DELETE FROM transaction_receipts')
+					sqlite.run('DELETE FROM tx_history')
+					console.log('[rpc] resetApp complete')
+					return true
+				} catch (e) {
+					console.log('[rpc] resetApp error:', e)
+					return false
+				}
+			},
 			biometricCanAuth: async () => {
 				try {
 					return canPromptTouchID()

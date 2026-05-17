@@ -199,6 +199,24 @@ export const Wallet = () => {
 		}
 	}
 
+	const resetApp = async () => {
+		if (!electrobun.rpc) return false
+		const [ok] = await tryCatch(
+			electrobun.rpc.request.resetApp({}),
+		)
+		if (!ok) return false
+		seed = ''
+		address = ''
+		balance = '0'
+		error = ''
+		tokenBalances = []
+		transactions = []
+		apiKey = ''
+		vaultExists = false
+		passwordHash = ''
+		return true
+	}
+
 	const setPassword = async (password: string) => {
 		if (!electrobun.rpc) return
 		const ph = await hashPassword(password)
@@ -473,6 +491,7 @@ export const Wallet = () => {
 		unlockWithBiometrics,
 		unlockWithPassword,
 		setPassword,
+		resetApp,
 		saveVault,
 		switchNetwork,
 		saveApiKey,

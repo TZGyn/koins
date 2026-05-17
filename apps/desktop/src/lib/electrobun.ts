@@ -92,6 +92,10 @@ export type TokenBalanceResult = {
 type RPC = {
 	bun: {
 		requests: {
+			resetApp: {
+				params: {}
+				response: boolean
+			}
 			biometricCanAuth: {
 				params: {}
 				response: boolean

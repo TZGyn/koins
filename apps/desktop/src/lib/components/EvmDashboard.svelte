@@ -14,6 +14,7 @@
 	import ArrowDown from '@lucide/svelte/icons/arrow-down'
 	import ArrowUp from '@lucide/svelte/icons/arrow-up'
 	import QrCodeIcon from '@lucide/svelte/icons/qr-code'
+	import SettingsIcon from '@lucide/svelte/icons/settings'
 	import Fingerprint from '@lucide/svelte/icons/fingerprint'
 	import * as Dialog from '$lib/components/ui/dialog/index.js'
 	import QRCode from 'qrcode'
@@ -251,6 +252,9 @@
 				<div class="flex gap-2">
 					<Button onclick={() => w.refresh()} disabled={w.loading}>
 						{w.loading ? 'Refreshing...' : 'Refresh'}
+					</Button>
+					<Button variant="outline" onclick={() => navigate('/settings')}>
+						<SettingsIcon size={16} />
 					</Button>
 					<Button variant="outline" onclick={() => w.lock()}>
 						Lock
