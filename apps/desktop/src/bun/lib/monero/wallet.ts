@@ -189,6 +189,12 @@ export class MoneroWalletManager {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
 		const txs = await this.wallet.getTxs() as any[]
 		console.log(`[monero] transactions: ${txs?.length ?? 0} returned`)
+		if (txs?.length) {
+			for (const tx of txs.slice(0, 5)) {
+				console.log(`[monero]   tx: hash=${tx.hash?.substring(0, 12) ?? '?'} amount=${tx.amount?.toString() ?? '0'} dir=${tx.direction} height=${tx.height ?? 0}`)
+			}
+			if (txs.length > 5) console.log(`[monero]   ... and ${txs.length - 5} more`)
+		}
 		return txs ?? []
 	}
 
