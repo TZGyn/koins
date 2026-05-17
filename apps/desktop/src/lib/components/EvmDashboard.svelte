@@ -135,10 +135,16 @@
 						<div class="flex items-start gap-3">
 							<p class="font-mono text-xs break-all flex-1">{w.address}</p>
 							{#if qrDataUrl}
-								<img
-									src={qrDataUrl}
-									alt="QR code"
-									class="size-20 rounded-md border" />
+								<div class="relative size-20 shrink-0">
+									<img
+										src={qrDataUrl}
+										alt="QR code"
+										class="size-20 rounded-md border" />
+									<img
+										src={nativeIcon(w.network)}
+										alt=""
+										class="absolute left-1/2 top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-0.5" />
+								</div>
 							{/if}
 						</div>
 						<p class="mt-2 font-medium text-xs">
