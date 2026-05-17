@@ -128,6 +128,10 @@ export const Wallet = () => {
 		network = id
 		if (id === 'monero') {
 			await checkMoneroStatus()
+			if (moneroInstalled && !moneroRunning) {
+				await moneroStart()
+				await checkMoneroStatus()
+			}
 		} else if (seed) {
 			await refresh()
 		}
