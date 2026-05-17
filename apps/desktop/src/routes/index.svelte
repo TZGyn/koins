@@ -12,6 +12,8 @@
 		CardHeader,
 		CardTitle,
 	} from '$lib/components/ui/card/index.js'
+	import ArrowDown from '@lucide/svelte/icons/arrow-down'
+	import ArrowUp from '@lucide/svelte/icons/arrow-up'
 
 	const CDN =
 		'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains'
@@ -262,7 +264,14 @@
 							{:else}
 								<div class="max-h-96 space-y-1 overflow-y-auto">
 									{#each w.moneroTxs as tx}
-										<div class="flex items-center justify-between rounded-md bg-muted px-3 py-2 text-xs">
+										<div class="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs">
+											<div class="shrink-0 mt-0.5 {tx.direction === 'in' ? 'text-green-500' : 'text-muted-foreground'}">
+												{#if tx.direction === 'in'}
+													<ArrowDown size={16} />
+												{:else}
+													<ArrowUp size={16} />
+												{/if}
+											</div>
 											<div class="min-w-0 flex-1 space-y-0.5">
 												<p class="font-medium">
 													{tx.direction === 'in' ? 'Received' : 'Sent'}
@@ -426,7 +435,14 @@
 													hash: tx.hash,
 												},
 											})}
-										class="flex w-full cursor-pointer items-center justify-between rounded-md bg-muted px-3 py-2 text-xs text-left hover:bg-muted/80 transition-colors">
+										class="flex w-full cursor-pointer items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs text-left hover:bg-muted/80 transition-colors">
+										<div class="shrink-0 mt-0.5 {tx.from.toLowerCase() === w.address.toLowerCase() ? 'text-muted-foreground' : 'text-green-500'}">
+											{#if tx.from.toLowerCase() === w.address.toLowerCase()}
+												<ArrowUp size={16} />
+											{:else}
+												<ArrowDown size={16} />
+											{/if}
+										</div>
 										<div class="min-w-0 flex-1 space-y-0.5">
 											<p class="font-medium">
 												{txAction(tx, w.address)}
