@@ -612,8 +612,9 @@ const rpc = BrowserView.defineRPC<RPC>({
 					return { running: false, walletOpen: false, connected: false }
 				}
 				const connected = await moneroManager.isConnected()
-				console.log('[rpc] moneroWalletStatus: running, connected:', connected)
-				return { running: true, walletOpen: true, connected }
+				const walletOpen = await moneroManager.isWalletOpen()
+				console.log('[rpc] moneroWalletStatus: running, walletOpen:', walletOpen, 'connected:', connected)
+				return { running: true, walletOpen, connected }
 			},
 			moneroGetAccounts: async () => {
 				console.log('[rpc] moneroGetAccounts')

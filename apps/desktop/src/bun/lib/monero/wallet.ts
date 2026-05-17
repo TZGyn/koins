@@ -218,10 +218,21 @@ export class MoneroWalletManager {
 		}
 	}
 
-	async isConnected(): Promise<boolean> {
+	async isWalletOpen(): Promise<boolean> {
 		if (!this.wallet) return false
 		try {
 			await this.wallet.getHeight()
+			return true
+		} catch {
+			return false
+		}
+	}
+
+	async isConnected(): Promise<boolean> {
+		if (!this.wallet) return false
+		try {
+			const daemon = await connectToDaemonRpc(`http://${this.daemonAddress}`)
+			await daemon.getHeight()
 			return true
 		} catch (e) {
 			console.log(`[monero] connection check failed:`, e)
