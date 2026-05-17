@@ -125,6 +125,10 @@ export const Wallet = () => {
 		if (ph) passwordHash = ph
 
 		await checkMoneroStatus()
+		if (moneroInstalled && !moneroRunning && !moneroDownloading) {
+			await moneroStart()
+			await checkMoneroStatus()
+		}
 		await checkBiometric()
 		ready = true
 	}
