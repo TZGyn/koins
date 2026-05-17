@@ -13,6 +13,7 @@
 	} from '$lib/components/ui/card/index.js'
 	import ArrowDown from '@lucide/svelte/icons/arrow-down'
 	import ArrowUp from '@lucide/svelte/icons/arrow-up'
+	import QRCode from 'qrcode'
 
 	let { networkId }: { networkId: NetworkId } = $props()
 
@@ -47,6 +48,14 @@
 	const w = wallet
 	let inputSeed = $state('')
 	let apiKeyInput = $state('')
+	let qrDataUrl = $state('')
+	$effect(() => {
+		if (w.address) {
+			QRCode.toDataURL(w.address, { width: 120, margin: 1 }).then(
+				(url) => (qrDataUrl = url),
+			)
+		}
+	})
 
 	function navTarget(id: NetworkId): string {
 		if (id === 'eth') return '/'
@@ -123,7 +132,15 @@
 				{#if w.address}
 					<div class="mb-4 space-y-1">
 						<p class="font-medium text-xs">Address</p>
-						<p class="font-mono text-xs break-all">{w.address}</p>
+						<div class="flex items-start gap-3">
+							<p class="font-mono text-xs break-all flex-1">{w.address}</p>
+							{#if qrDataUrl}
+								<img
+									src={qrDataUrl}
+									alt="QR code"
+									class="size-20 rounded-md border" />
+							{/if}
+						</div>
 						<p class="mt-2 font-medium text-xs">
 							{w.symbol} Balance
 						</p>
