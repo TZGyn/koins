@@ -1,5 +1,5 @@
 import { JsonRpcProvider, HDNodeWallet, formatEther } from 'ethers'
-import { electrobun, type TxEntry } from '$lib/electrobun'
+import { electrobun, type TxEntry, type MoneroTxEntry, type MoneroAccountEntry } from '$lib/electrobun'
 import { tryCatch } from '@koins/utils'
 
 export const networks = [
@@ -27,6 +27,14 @@ export const networks = [
 		chainid: '1',
 		explorerUrl: 'https://etherscan.io/tx/',
 	},
+	{
+		id: 'monero',
+		name: 'Monero',
+		rpc: '',
+		symbol: 'XMR',
+		chainid: '',
+		explorerUrl: 'https://moneroblocks.info/tx/',
+	},
 ] as const
 
 export type NetworkId = (typeof networks)[number]['id']
@@ -36,6 +44,13 @@ export type TokenBalance = {
 	balance: string
 	contractAddress: string
 	logo?: string
+}
+
+export const atomicToXmr = (atomic: string): string => {
+	const n = BigInt(atomic)
+	const whole = n / 10_000_000_000_000n
+	const frac = (n % 10_000_000_000_000n).toString().padStart(12, '0').replace(/0+$/, '')
+	return frac ? `${whole}.${frac}` : `${whole}`
 }
 
 export const Wallet = () => {
@@ -51,7 +66,23 @@ export const Wallet = () => {
 	let apiKey = $state('')
 	let transactions = $state<TxEntry[]>([])
 
+	let moneroRunning = $state(false)
+	let moneroWalletOpen = $state(false)
+	let moneroConnected = $state(false)
+	let moneroBalAtomic = $state('0')
+	let moneroUnlockedAtomic = $state('0')
+	let moneroAddress = $state('')
+	let moneroHeight = $state(0)
+	let moneroDaemonHeight = $state(0)
+	let moneroTxs = $state<MoneroTxEntry[]>([])
+	let moneroInstalled = $state(false)
+	let moneroDownloading = $state(false)
+	let moneroWalletName = $state('')
+	let moneroAccounts = $state<MoneroAccountEntry[]>([])
+
 	const net = () => networks.find((n) => n.id === network)!
+
+	const isMonero = () => network === 'monero'
 
 	const init = async () => {
 		if (!electrobun.rpc) return
@@ -95,7 +126,11 @@ export const Wallet = () => {
 
 	const switchNetwork = async (id: NetworkId) => {
 		network = id
-		if (seed) await refresh()
+		if (id === 'monero') {
+			await checkMoneroStatus()
+		} else if (seed) {
+			await refresh()
+		}
 	}
 
 	const saveVault = async (phrase: string) => {
@@ -163,6 +198,19 @@ export const Wallet = () => {
 		loading = false
 	}
 
+	const moneroFetchAccounts = async () => {
+		if (!electrobun.rpc) return false
+		const [accounts, error] = await tryCatch(
+			electrobun.rpc.request.moneroGetAccounts({}),
+		)
+		if (error) {
+			console.log('moneroFetchAccounts error:', error)
+			return false
+		}
+		moneroAccounts = accounts ?? []
+		return true
+	}
+
 	const saveApiKey = async (key: string) => {
 		await electrobun.rpc?.request.setSecret({
 			service: 'koins',
@@ -185,58 +233,148 @@ export const Wallet = () => {
 		transactions = txs ?? []
 	}
 
+	const checkMoneroStatus = async () => {
+		if (!electrobun.rpc) return
+		const [binStatus] = await tryCatch(
+			electrobun.rpc.request.moneroBinaryStatus({}),
+		)
+		if (binStatus) {
+			moneroInstalled = binStatus.installed
+			moneroDownloading = binStatus.downloading
+		}
+		const [status] = await tryCatch(
+			electrobun.rpc.request.moneroWalletStatus({}),
+		)
+		if (status) {
+			moneroRunning = status.running
+			moneroWalletOpen = status.walletOpen
+			moneroConnected = status.connected
+		}
+	}
+
+	const moneroDownload = async () => {
+		if (!electrobun.rpc) return
+		moneroDownloading = true
+		try {
+			await electrobun.rpc.request.moneroDownloadBinary({})
+			moneroInstalled = true
+		} finally {
+			moneroDownloading = false
+		}
+	}
+
+	const moneroStart = async () => {
+		if (!electrobun.rpc) return
+		const status = await electrobun.rpc.request.moneroStart({})
+		moneroRunning = status.running
+		moneroConnected = status.connected
+	}
+
+	const moneroStop = async () => {
+		if (!electrobun.rpc) return
+		await electrobun.rpc.request.moneroStop({})
+		moneroRunning = false
+		moneroWalletOpen = false
+		moneroConnected = false
+		moneroAddress = ''
+		moneroBalAtomic = '0'
+		moneroUnlockedAtomic = '0'
+		moneroTxs = []
+		moneroAccounts = []
+	}
+
+	const moneroCreateWallet = async (name: string, password: string) => {
+		if (!electrobun.rpc) throw new Error('RPC not available')
+		const result = await electrobun.rpc.request.moneroCreateWallet({ name, password })
+		moneroWalletName = name
+		moneroWalletOpen = true
+		moneroAddress = result.address
+		await moneroRefresh()
+		return result
+	}
+
+	const moneroRestoreWallet = async (name: string, password: string, mnemonic: string, restoreHeight?: number) => {
+		if (!electrobun.rpc) throw new Error('RPC not available')
+		const result = await electrobun.rpc.request.moneroRestoreWallet({
+			name, password, mnemonic, restoreHeight,
+		})
+		moneroWalletName = name
+		moneroWalletOpen = true
+		moneroAddress = result.address
+		await moneroRefresh()
+	}
+
+	const moneroOpenWallet = async (name: string, password: string) => {
+		if (!electrobun.rpc) return
+		await electrobun.rpc.request.moneroOpenWallet({ name, password })
+		moneroWalletName = name
+		moneroWalletOpen = true
+		await moneroRefresh()
+	}
+
+	const moneroRefresh = async () => {
+		if (!electrobun.rpc) return
+		loading = true
+		try {
+			const [bal] = await tryCatch(
+				electrobun.rpc.request.moneroGetBalance({}),
+			)
+			if (bal) {
+				moneroBalAtomic = bal.balance
+				moneroUnlockedAtomic = bal.unlocked
+				moneroAddress = bal.address
+				moneroHeight = bal.height
+				moneroDaemonHeight = bal.daemonHeight
+			}
+			const [txs] = await tryCatch(
+				electrobun.rpc.request.moneroGetTransactions({}),
+			)
+			moneroTxs = txs ?? []
+			await moneroFetchAccounts()
+		} catch (e) {
+			console.log('monero refresh error', e)
+			error = e instanceof Error ? e.message : 'Monero refresh failed'
+		} finally {
+			loading = false
+		}
+	}
+
 	return {
 		get isLocked() {
-			return vaultExists && !seed
+			return vaultExists && !seed && network !== 'monero'
 		},
-		get seed() {
-			return seed
-		},
-		get address() {
-			return address
-		},
-		get balance() {
-			return balance
-		},
-		get tokenBalances() {
-			return tokenBalances
-		},
-		get network() {
-			return network
-		},
-		get chainid() {
-			return net().chainid
-		},
-		get networkName() {
-			return net().name
-		},
-		get symbol() {
-			return net().symbol
-		},
-		get explorerUrl() {
-			return net().explorerUrl
-		},
-		get loading() {
-			return loading
-		},
-		get error() {
-			return error
-		},
-		get vaultExists() {
-			return vaultExists
-		},
-		get ready() {
-			return ready
-		},
-		get networks() {
-			return networks
-		},
-		get apiKey() {
-			return apiKey
-		},
-		get transactions() {
-			return transactions
-		},
+		get seed() { return seed },
+		get address() { return address },
+		get balance() { return balance },
+		get tokenBalances() { return tokenBalances },
+		get network() { return network },
+		get chainid() { return net().chainid },
+		get networkName() { return net().name },
+		get symbol() { return net().symbol },
+		get explorerUrl() { return net().explorerUrl },
+		get loading() { return loading },
+		get error() { return error },
+		get vaultExists() { return vaultExists },
+		get ready() { return ready },
+		get networks() { return networks },
+		get apiKey() { return apiKey },
+		get transactions() { return transactions },
+		isMonero,
+		get moneroRunning() { return moneroRunning },
+		get moneroWalletOpen() { return moneroWalletOpen },
+		get moneroConnected() { return moneroConnected },
+		get moneroBalAtomic() { return moneroBalAtomic },
+		get moneroUnlockedAtomic() { return moneroUnlockedAtomic },
+		get moneroBalance() { return atomicToXmr(moneroBalAtomic) },
+		get moneroUnlocked() { return atomicToXmr(moneroUnlockedAtomic) },
+		get moneroAddress() { return moneroAddress },
+		get moneroHeight() { return moneroHeight },
+		get moneroDaemonHeight() { return moneroDaemonHeight },
+		get moneroTxs() { return moneroTxs },
+		get moneroInstalled() { return moneroInstalled },
+		get moneroDownloading() { return moneroDownloading },
+		get moneroWalletName() { return moneroWalletName },
+		get moneroAccounts() { return moneroAccounts },
 		refresh,
 		init,
 		lock,
@@ -244,5 +382,14 @@ export const Wallet = () => {
 		switchNetwork,
 		saveApiKey,
 		fetchTxHistory,
+		checkMoneroStatus,
+		moneroDownload,
+		moneroStart,
+		moneroStop,
+		moneroCreateWallet,
+		moneroRestoreWallet,
+		moneroOpenWallet,
+		moneroRefresh,
+		moneroFetchAccounts,
 	}
 }

@@ -21,6 +21,13 @@ import { db } from './lib/db'
 import { join } from 'path'
 import { getENV } from './lib/get-env'
 import { getClient, getTransactionDetails } from './lib/viem'
+import {
+	isBinaryInstalled,
+	downloadBinary,
+	getBinaryPath,
+	getBinaryDir,
+	MoneroWalletManager,
+} from './lib/monero'
 
 const env = getENV()
 
@@ -169,6 +176,71 @@ type RPC = {
 				}
 				response: void
 			}
+			moneroBinaryStatus: {
+				params: {}
+				response: {
+					installed: boolean
+					downloading: boolean
+					error?: string
+				}
+			}
+			moneroDownloadBinary: {
+				params: {}
+				response: void
+			}
+			moneroStart: {
+				params: { daemonAddress?: string }
+				response: {
+					running: boolean
+					walletOpen: boolean
+					walletName?: string
+					connected: boolean
+				}
+			}
+			moneroStop: {
+				params: {}
+				response: void
+			}
+			moneroCreateWallet: {
+				params: { name: string; password: string }
+				response: { mnemonic: string; address: string }
+			}
+			moneroRestoreWallet: {
+				params: { name: string; password: string; mnemonic: string; restoreHeight?: number }
+				response: { address: string }
+			}
+			moneroOpenWallet: {
+				params: { name: string; password: string }
+				response: void
+			}
+			moneroGetBalance: {
+				params: {}
+				response: {
+					balance: string
+					unlocked: string
+					address: string
+					height: number
+				}
+			}
+			moneroGetTransactions: {
+				params: {}
+				response: Array<{
+					hash: string
+					amount: string
+					timestamp: string
+					direction: 'in' | 'out'
+					height: number
+				}>
+			}
+			moneroWalletStatus: {
+				params: {}
+				response: {
+					running: boolean
+					walletOpen: boolean
+					walletName?: string
+					connected: boolean
+				}
+			}
 		}
 		messages: {}
 	}>
@@ -274,8 +346,11 @@ function mapTransfer(t: any): TxEntry {
 	}
 }
 
+let moneroManager: MoneroWalletManager | null = null
+let moneroDownloading = false
+
 const rpc = BrowserView.defineRPC<RPC>({
-	maxRequestTime: 10000,
+	maxRequestTime: 120000,
 	handlers: {
 		requests: {
 			getSecret: async ({ name, service }) => {
@@ -440,6 +515,112 @@ const rpc = BrowserView.defineRPC<RPC>({
 					console.log(error)
 					return null
 				}
+			},
+			moneroBinaryStatus: async () => {
+				const status = { installed: isBinaryInstalled(), downloading: moneroDownloading }
+				console.log('[rpc] moneroBinaryStatus:', status)
+				return status
+			},
+			moneroDownloadBinary: async () => {
+				console.log('[rpc] moneroDownloadBinary: starting download...')
+				moneroDownloading = true
+				try {
+					await downloadBinary()
+					console.log('[rpc] moneroDownloadBinary: complete')
+				} catch (e) {
+					console.log('[rpc] moneroDownloadBinary failed:', e)
+					throw e
+				} finally {
+					moneroDownloading = false
+				}
+			},
+			moneroStart: async ({ daemonAddress }) => {
+				console.log('[rpc] moneroStart:', { daemonAddress })
+				if (!moneroManager) {
+					moneroManager = new MoneroWalletManager()
+				}
+				try {
+					await moneroManager.start(daemonAddress)
+				} catch (e) {
+					console.log('[rpc] moneroStart error:', e)
+					return { running: false, walletOpen: false, connected: false }
+				}
+				const connected = await moneroManager.isConnected()
+				console.log('[rpc] moneroStart complete, connected:', connected)
+				return { running: true, walletOpen: false, connected }
+			},
+			moneroStop: async () => {
+				console.log('[rpc] moneroStop')
+				if (moneroManager) {
+					await moneroManager.stop()
+					moneroManager = null
+				}
+			},
+			moneroCreateWallet: async ({ name, password }) => {
+				console.log('[rpc] moneroCreateWallet:', name)
+				if (!moneroManager) throw new Error('Monero wallet RPC not started')
+				const result = await moneroManager.createWallet(name, password)
+				console.log('[rpc] moneroCreateWallet complete')
+				return result
+			},
+			moneroRestoreWallet: async ({ name, password, mnemonic, restoreHeight }) => {
+				console.log('[rpc] moneroRestoreWallet:', name)
+				if (!moneroManager) throw new Error('Monero wallet RPC not started')
+				await moneroManager.restoreWallet(name, password, mnemonic, restoreHeight)
+				const address = await moneroManager.getAddress()
+				console.log('[rpc] moneroRestoreWallet complete, address:', address)
+				return { address }
+			},
+			moneroOpenWallet: async ({ name, password }) => {
+				console.log('[rpc] moneroOpenWallet:', name)
+				if (!moneroManager) throw new Error('Monero wallet RPC not started')
+				await moneroManager.openWallet(name, password)
+			},
+			moneroGetBalance: async () => {
+				console.log('[rpc] moneroGetBalance')
+				if (!moneroManager) throw new Error('Monero wallet RPC not started')
+				const { balance, unlocked } = await moneroManager.getBalance()
+				const address = await moneroManager.getAddress()
+				const height = await moneroManager.getHeight()
+				const daemonHeight = await moneroManager.getDaemonHeight()
+				console.log('[rpc] balance:', { balance: balance.toString(), unlocked: unlocked.toString(), address, height, daemonHeight })
+				return {
+					balance: balance.toString(),
+					unlocked: unlocked.toString(),
+					address,
+					height,
+					daemonHeight,
+				}
+			},
+			moneroGetTransactions: async () => {
+				console.log('[rpc] moneroGetTransactions')
+				if (!moneroManager) throw new Error('Monero wallet RPC not started')
+				const txs = await moneroManager.getTransactions()
+				const result = (txs || []).map((tx: any) => ({
+					hash: tx.hash,
+					amount: tx.amount?.toString() ?? '0',
+					timestamp: String(tx.timestamp ?? 0),
+					direction: tx.direction === 'in' ? 'in' as const : 'out' as const,
+					height: tx.height ?? 0,
+				}))
+				console.log(`[rpc] moneroGetTransactions: ${result.length} txs`)
+				return result
+			},
+			moneroWalletStatus: async () => {
+				if (!moneroManager) {
+					console.log('[rpc] moneroWalletStatus: not running')
+					return { running: false, walletOpen: false, connected: false }
+				}
+				const connected = await moneroManager.isConnected()
+				console.log('[rpc] moneroWalletStatus: running, connected:', connected)
+				return { running: true, walletOpen: true, connected }
+			},
+			moneroGetAccounts: async () => {
+				console.log('[rpc] moneroGetAccounts')
+				if (!moneroManager) throw new Error('Monero wallet RPC not started')
+				const accounts = await moneroManager.getAccounts()
+				console.log(`[rpc] moneroGetAccounts: ${accounts.length} accounts`)
+				return accounts
 			},
 		},
 		messages: {},
