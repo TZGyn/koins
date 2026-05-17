@@ -81,8 +81,18 @@ export const Wallet = () => {
 	let moneroWalletName = $state('')
 	let moneroAccounts = $state<MoneroAccountEntry[]>([])
 	let moneroWallets = $state<string[]>([])
+	let passwordHash = $state('')
 
 	const net = () => networks.find((n) => n.id === network)!
+
+	async function hashPassword(password: string, salt?: string): Promise<{ salt: string; hash: string }> {
+		const s = salt ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('')
+		const enc = new TextEncoder()
+		const key = await crypto.subtle.importKey('raw', enc.encode(password + s), 'PBKDF2', false, ['deriveBits'])
+		const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(s), iterations: 100_000, hash: 'SHA-256' }, key, 256)
+		const hash = Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, '0')).join('')
+		return { salt: s, hash }
+	}
 
 	const isMonero = () => network === 'monero'
 
@@ -100,18 +110,18 @@ export const Wallet = () => {
 		}
 
 		vaultExists = raw !== null && raw !== undefined
+
 		const [key, keyError] = await tryCatch(
-			electrobun.rpc?.request.getSecret({
-				service: 'koins',
-				name: 'alchemy_key',
-			}),
+			electrobun.rpc.request.getSecret({ service: 'koins', name: 'alchemy_key' }),
 		)
-
-		if (keyError) {
-			console.log('key error', keyError)
-		}
-
+		if (keyError) console.log('key error', keyError)
 		if (key) apiKey = key
+
+		const [ph] = await tryCatch(
+			electrobun.rpc.request.getSecret({ service: 'koins', name: 'vault_password' }),
+		)
+		if (ph) passwordHash = ph
+
 		await checkBiometric()
 		ready = true
 	}
@@ -130,7 +140,7 @@ export const Wallet = () => {
 		}
 	}
 
-	const saveVault = async (phrase: string) => {
+	const saveVault = async (phrase: string, password?: string) => {
 		loading = true
 		error = ''
 		try {
@@ -140,6 +150,16 @@ export const Wallet = () => {
 				name: 'vault',
 				value: phrase.trim(),
 			})
+			if (password) {
+				const ph = await hashPassword(password)
+				const raw = JSON.stringify(ph)
+				await electrobun.rpc?.request.setSecret({
+					service: 'koins',
+					name: 'vault_password',
+					value: raw,
+				})
+				passwordHash = raw
+			}
 			seed = phrase.trim()
 			vaultExists = true
 			await refresh()
@@ -164,6 +184,35 @@ export const Wallet = () => {
 			electrobun.rpc.request.biometricAuth({ reason: 'Unlock wallet' }),
 		)
 		if (!authed) return false
+		return loadSeed()
+	}
+
+	const unlockWithPassword = async (password: string) => {
+		if (!passwordHash) return false
+		try {
+			const { salt, hash } = JSON.parse(passwordHash)
+			const { hash: check } = await hashPassword(password, salt)
+			if (check !== hash) return false
+			return await loadSeed()
+		} catch {
+			return false
+		}
+	}
+
+	const setPassword = async (password: string) => {
+		if (!electrobun.rpc) return
+		const ph = await hashPassword(password)
+		const raw = JSON.stringify(ph)
+		await electrobun.rpc.request.setSecret({
+			service: 'koins',
+			name: 'vault_password',
+			value: raw,
+		})
+		passwordHash = raw
+	}
+
+	async function loadSeed() {
+		if (!electrobun.rpc) return false
 		const [raw] = await tryCatch(
 			electrobun.rpc.request.getSecret({
 				service: 'koins',
@@ -417,10 +466,13 @@ export const Wallet = () => {
 		get moneroAccounts() { return moneroAccounts },
 		get moneroWallets() { return moneroWallets },
 		get biometricAvailable() { return biometricAvailable },
+		get passwordSet() { return !!passwordHash },
 		refresh,
 		init,
 		lock,
 		unlockWithBiometrics,
+		unlockWithPassword,
+		setPassword,
 		saveVault,
 		switchNetwork,
 		saveApiKey,

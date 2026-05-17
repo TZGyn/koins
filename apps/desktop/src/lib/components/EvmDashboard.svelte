@@ -50,6 +50,8 @@
 
 	const w = wallet
 	let inputSeed = $state('')
+	let inputPassword = $state('')
+	let inputUnlockPassword = $state('')
 	let apiKeyInput = $state('')
 	let qrDataUrl = $state('')
 	let qrDialogOpen = $state(false)
@@ -89,8 +91,13 @@
 				<Textarea
 					placeholder="Enter your 12 or 24 word seed phrase"
 					bind:value={inputSeed} />
+				<input
+					type="password"
+					placeholder="Set a password (optional, used when Touch ID is unavailable)"
+					class="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 font-mono text-xs"
+					bind:value={inputPassword} />
 				<Button
-					onclick={() => w.saveVault(inputSeed)}
+					onclick={() => w.saveVault(inputSeed, inputPassword || undefined)}
 					disabled={w.loading || !inputSeed.trim()}>
 					{w.loading ? 'Saving...' : 'Save to Keychain'}
 				</Button>
@@ -107,18 +114,35 @@
 			<CardDescription>Your seed is stored in the system keychain</CardDescription>
 		</CardHeader>
 		<CardContent>
-			{#if w.biometricAvailable}
-				<Button
-					onclick={() => w.unlockWithBiometrics()}
-					disabled={w.loading}>
-					<Fingerprint size={16} />
-					{w.loading ? 'Unlocking...' : 'Unlock with Touch ID'}
-				</Button>
-			{:else}
-				<p class="text-muted-foreground text-xs">
-					Touch ID not available on this device
-				</p>
-			{/if}
+			<div class="flex flex-col gap-3">
+				{#if w.biometricAvailable}
+					<Button
+						onclick={() => w.unlockWithBiometrics()}
+						disabled={w.loading}>
+						<Fingerprint size={16} />
+						{w.loading ? 'Unlocking...' : 'Unlock with Touch ID'}
+					</Button>
+				{/if}
+				{#if w.passwordSet}
+					<div class="flex gap-2 items-end">
+						<input
+							type="password"
+							placeholder="Enter password"
+							class="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 font-mono text-xs"
+							bind:value={inputUnlockPassword} />
+						<Button
+							onclick={async () => {
+								const ok = await w.unlockWithPassword(inputUnlockPassword)
+								if (!ok) w.error = 'Wrong password'
+								inputUnlockPassword = ''
+							}}
+							disabled={w.loading || !inputUnlockPassword}
+							size="sm">
+							{w.loading ? '...' : 'Unlock'}
+						</Button>
+					</div>
+				{/if}
+			</div>
 			{#if w.error}
 				<p class="mt-3 text-red-500">{w.error}</p>
 			{/if}
