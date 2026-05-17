@@ -268,12 +268,10 @@
 													{tx.direction === 'in' ? 'Received' : 'Sent'}
 												</p>
 												<p class="font-mono text-muted-foreground">
-													{Number(tx.amount) > 0
-														? `${tx.direction === 'in' ? '+' : '-'}${(BigInt(tx.amount) / 10_000_000_000_000n).toString()} XMR`
-														: '0 XMR'}
+													{atomicToXmr(tx.amount)} XMR
 												</p>
-												{#if tx.height > 0}
-													<p class="text-muted-foreground">Block {tx.height}</p>
+												{#if tx.timestamp && tx.timestamp !== '0'}
+													<p class="text-muted-foreground">{new Date(Number(tx.timestamp) * 1000).toLocaleString()}</p>
 												{/if}
 												<p class="text-muted-foreground/50 truncate font-mono">
 													{tx.hash.slice(0, 12)}...

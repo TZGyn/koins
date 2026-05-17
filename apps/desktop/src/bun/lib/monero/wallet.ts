@@ -1,4 +1,9 @@
-import { MoneroWalletRpc, MoneroRpcConnection, connectToWalletRpc, connectToDaemonRpc } from 'monero-ts'
+import {
+	MoneroWalletRpc,
+	MoneroRpcConnection,
+	connectToWalletRpc,
+	connectToDaemonRpc,
+} from 'monero-ts'
 import { getBinaryPath, getWalletDir } from './binary'
 import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
@@ -24,9 +29,11 @@ export class MoneroWalletManager {
 		if (!existsSync(dir)) return []
 		const files = readdirSync(dir)
 		const wallets = files
-			.filter(f => f.endsWith('.keys'))
-			.map(f => f.replace(/\.keys$/, ''))
-		console.log(`[monero] wallets on disk: ${wallets.join(', ') || 'none'}`)
+			.filter((f) => f.endsWith('.keys'))
+			.map((f) => f.replace(/\.keys$/, ''))
+		console.log(
+			`[monero] wallets on disk: ${wallets.join(', ') || 'none'}`,
+		)
 		return wallets
 	}
 
@@ -43,7 +50,10 @@ export class MoneroWalletManager {
 	}
 
 	async start(daemonAddress: string = DEFAULT_DAEMON) {
-		if (!existsSync(getBinaryPath())) throw new Error('monero-wallet-rpc not installed. Call downloadBinary() first.')
+		if (!existsSync(getBinaryPath()))
+			throw new Error(
+				'monero-wallet-rpc not installed. Call downloadBinary() first.',
+			)
 		this.daemonAddress = daemonAddress
 
 		console.log(`[monero] starting wallet-rpc process...`)
@@ -52,11 +62,16 @@ export class MoneroWalletManager {
 
 		const cmd = [
 			getBinaryPath(),
-			'--daemon-address', this.daemonAddress,
-			'--rpc-bind-port', String(this.rpcPort),
-			'--rpc-bind-ip', '127.0.0.1',
-			'--wallet-dir', getWalletDir(),
-			'--rpc-login', `${this.rpcUser}:${this.rpcPassword}`,
+			'--daemon-address',
+			this.daemonAddress,
+			'--rpc-bind-port',
+			String(this.rpcPort),
+			'--rpc-bind-ip',
+			'127.0.0.1',
+			'--wallet-dir',
+			getWalletDir(),
+			'--rpc-login',
+			`${this.rpcUser}:${this.rpcPassword}`,
 			'--trusted-daemon',
 		]
 
@@ -66,7 +81,10 @@ export class MoneroWalletManager {
 			stdout: 'pipe',
 			stderr: 'pipe',
 			onExit(_proc, exitCode, _signalCode, error) {
-				console.log(`[monero] wallet-rpc process exited with code ${exitCode}`, error?.message ?? '')
+				console.log(
+					`[monero] wallet-rpc process exited with code ${exitCode}`,
+					error?.message ?? '',
+				)
 			},
 		})
 		console.log(`[monero] wallet-rpc pid: ${this.process.pid}`)
@@ -76,7 +94,9 @@ export class MoneroWalletManager {
 			while (true) {
 				const { done, value } = await stdout.read()
 				if (done) break
-				console.log(`[monero:stdout] ${new TextDecoder().decode(value)}`)
+				console.log(
+					`[monero:stdout] ${new TextDecoder().decode(value)}`,
+				)
 			}
 		})()
 
@@ -85,23 +105,35 @@ export class MoneroWalletManager {
 			while (true) {
 				const { done, value } = await stderr.read()
 				if (done) break
-				console.log(`[monero:stderr] ${new TextDecoder().decode(value)}`)
+				console.log(
+					`[monero:stderr] ${new TextDecoder().decode(value)}`,
+				)
 			}
 		})()
 
-		console.log(`[monero] waiting for RPC server to become available...`)
+		console.log(
+			`[monero] waiting for RPC server to become available...`,
+		)
 		await this.waitForRpc()
 		console.log(`[monero] RPC server is ready`)
 
 		console.log(`[monero] connecting MoneroWalletRpc client...`)
-		this.wallet = await connectToWalletRpc(this.rpcUrl, this.rpcUser, this.rpcPassword) as MoneroWalletRpc
+		this.wallet = (await connectToWalletRpc(
+			this.rpcUrl,
+			this.rpcUser,
+			this.rpcPassword,
+		)) as MoneroWalletRpc
 		console.log(`[monero] MoneroWalletRpc connected successfully`)
 	}
 
-	private async rawRpc(method: string, params: Record<string, any> = {}): Promise<any> {
+	private async rawRpc(
+		method: string,
+		params: Record<string, any> = {},
+	): Promise<any> {
 		const conn = this.rpcConnection
 		const res = await conn.sendJsonRequest(method, params)
-		if (res?.error) throw new Error(res.error.message || JSON.stringify(res.error))
+		if (res?.error)
+			throw new Error(res.error.message || JSON.stringify(res.error))
 		return res?.result
 	}
 
@@ -113,22 +145,35 @@ export class MoneroWalletManager {
 				await Bun.connect({
 					hostname: '127.0.0.1',
 					port: this.rpcPort,
-					socket: { open(s) { s.end() }, close() {}, data() {}, error() {} },
+					socket: {
+						open(s) {
+							s.end()
+						},
+						close() {},
+						data() {},
+						error() {},
+					},
 				})
-				console.log(`[monero] RPC ready after ${Date.now() - start}ms`)
+				console.log(
+					`[monero] RPC ready after ${Date.now() - start}ms`,
+				)
 				return
 			} catch (e) {
 				lastErr = String(e)
 			}
-			await new Promise(r => setTimeout(r, 500))
+			await new Promise((r) => setTimeout(r, 500))
 		}
-		throw new Error(`monero-wallet-rpc failed to start within ${timeoutMs}ms: ${lastErr}`)
+		throw new Error(
+			`monero-wallet-rpc failed to start within ${timeoutMs}ms: ${lastErr}`,
+		)
 	}
 
 	async stop() {
 		console.log(`[monero] stopping wallet manager...`)
 		if (this.process) {
-			console.log(`[monero] killing wallet-rpc process (pid ${this.process.pid})`)
+			console.log(
+				`[monero] killing wallet-rpc process (pid ${this.process.pid})`,
+			)
 			this.process.kill()
 			this.process = null
 		}
@@ -149,8 +194,15 @@ export class MoneroWalletManager {
 		return { mnemonic: result.mnemonic, address }
 	}
 
-	async restoreWallet(name: string, password: string, mnemonic: string, restoreHeight?: number) {
-		console.log(`[monero] restoring wallet: ${name} (height: ${restoreHeight ?? 0})`)
+	async restoreWallet(
+		name: string,
+		password: string,
+		mnemonic: string,
+		restoreHeight?: number,
+	) {
+		console.log(
+			`[monero] restoring wallet: ${name} (height: ${restoreHeight ?? 0})`,
+		)
 		await this.rawRpc('restore_deterministic_wallet', {
 			filename: name,
 			password,
@@ -177,55 +229,95 @@ export class MoneroWalletManager {
 
 	async getBalance(): Promise<{ balance: bigint; unlocked: bigint }> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
-		const bal = await this.wallet.getBalance() as bigint
-		const unlocked = await this.wallet.getUnlockedBalance() as bigint
+		const bal = (await this.wallet.getBalance()) as bigint
+		const unlocked =
+			(await this.wallet.getUnlockedBalance()) as bigint
 		console.log(`[monero] balance: ${bal} (unlocked: ${unlocked})`)
 		return { balance: bal, unlocked }
 	}
 
 	async getAddress(accountIdx = 0, subIdx = 0): Promise<string> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
-		const address = await this.wallet.getAddress(accountIdx, subIdx) as string
+		const address = (await this.wallet.getAddress(
+			accountIdx,
+			subIdx,
+		)) as string
 		console.log(`[monero] address: ${address}`)
 		return address
 	}
 
 	async getAccounts(): Promise<any[]> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
-		const accounts = await this.wallet.getAccounts(true) as any[]
-		console.log(`[monero] accounts: ${accounts?.length ?? 0} returned`)
+		const accounts = (await this.wallet.getAccounts(true)) as any[]
+		console.log(
+			`[monero] accounts: ${accounts?.length ?? 0} returned`,
+		)
 		if (accounts?.length) {
 			for (const acct of accounts) {
 				const subs = acct.getSubaddresses() ?? []
-				console.log(`[monero]   account ${acct.getIndex()}: balance=${acct.getBalance()?.toString() ?? '0'} subs=${subs.length} primary=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`)
+				console.log(
+					`[monero]   account ${acct.getIndex()}: balance=${acct.getBalance()?.toString() ?? '0'} subs=${subs.length} primary=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`,
+				)
 				const has0 = subs.some((s: any) => s.getIndex() === 0)
 				if (!has0) {
-					console.log(`[monero]     sub 0 (primary): addr=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`)
+					console.log(
+						`[monero]     sub 0 (primary): addr=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`,
+					)
 				}
 				for (const sub of subs) {
-					console.log(`[monero]     sub ${sub.getIndex()}: addr=${(sub.getAddress() ?? '').substring(0, 16)}... label=${sub.getLabel() ?? ''} balance=${sub.getBalance()?.toString() ?? '0'} used=${sub.getIsUsed()}`)
+					console.log(
+						`[monero]     sub ${sub.getIndex()}: addr=${(sub.getAddress() ?? '').substring(0, 16)}... label=${sub.getLabel() ?? ''} balance=${sub.getBalance()?.toString() ?? '0'} used=${sub.getIsUsed()}`,
+					)
 				}
 			}
 		}
-		return accounts?.map(a => a.toJson()) ?? []
+		return accounts?.map((a) => a.toJson()) ?? []
 	}
 
 	async getTransactions(): Promise<any[]> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
-		const txs = await this.wallet.getTxs() as any[]
+		const txs = (await this.wallet.getTxs()) as any[]
 		console.log(`[monero] transactions: ${txs?.length ?? 0} returned`)
 		if (txs?.length) {
 			for (const tx of txs.slice(0, 5)) {
-				console.log(`[monero]   tx: hash=${tx.hash?.substring(0, 12) ?? '?'} amount=${tx.amount?.toString() ?? '0'} dir=${tx.direction} height=${tx.height ?? 0}`)
+				const isIn = tx.getIsIncoming()
+				const isOut = tx.getIsOutgoing()
+				const amt = isIn
+					? (tx.getIncomingAmount() ?? 0n)
+					: (tx.getOutgoingAmount() ?? 0n)
+				console.log(
+					`[monero]   tx: hash=${(tx.getHash() ?? '').substring(0, 12)} amount=${amt.toString()} dir=${isIn ? 'in' : 'out'} height=${tx.getHeight() ?? 0}`,
+				)
 			}
-			if (txs.length > 5) console.log(`[monero]   ... and ${txs.length - 5} more`)
+			if (txs.length > 5)
+				console.log(`[monero]   ... and ${txs.length - 5} more`)
 		}
-		return txs ?? []
+		const result = (txs || []).map((tx: any) => {
+			const isIn = tx.getIsIncoming()
+			const isOut = tx.getIsOutgoing()
+			const amt = isIn
+				? (tx.getIncomingAmount() ?? 0n)
+				: (tx.getOutgoingAmount() ?? 0n)
+			const block = tx.getBlock()
+			const ts =
+				block?.getTimestamp() ?? tx.getReceivedTimestamp() ?? 0
+			return {
+				hash: tx.getHash(),
+				amount: amt?.toString() ?? '0',
+				timestamp: String(ts),
+				direction: isIn ? ('in' as const) : ('out' as const),
+				height: tx.getHeight() ?? 0,
+			}
+		})
+		result.sort(
+			(a: any, b: any) => Number(b.timestamp) - Number(a.timestamp),
+		)
+		return result
 	}
 
 	async getHeight(): Promise<number> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
-		const height = await this.wallet.getHeight() as number
+		const height = (await this.wallet.getHeight()) as number
 		console.log(`[monero] wallet height: ${height}`)
 		return height
 	}
@@ -233,8 +325,10 @@ export class MoneroWalletManager {
 	async getDaemonHeight(): Promise<number> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
 		try {
-			const daemon = await connectToDaemonRpc(`http://${this.daemonAddress}`)
-			const height = await daemon.getHeight() as number
+			const daemon = await connectToDaemonRpc(
+				`http://${this.daemonAddress}`,
+			)
+			const height = (await daemon.getHeight()) as number
 			console.log(`[monero] daemon height: ${height}`)
 			return height
 		} catch (e) {
@@ -256,7 +350,9 @@ export class MoneroWalletManager {
 	async isConnected(): Promise<boolean> {
 		if (!this.wallet) return false
 		try {
-			const daemon = await connectToDaemonRpc(`http://${this.daemonAddress}`)
+			const daemon = await connectToDaemonRpc(
+				`http://${this.daemonAddress}`,
+			)
 			await daemon.getHeight()
 			return true
 		} catch (e) {
