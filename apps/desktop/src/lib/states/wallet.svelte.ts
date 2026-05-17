@@ -419,3 +419,5 @@ export const Wallet = () => {
 		moneroOpenExistingWallet,
 	}
 }
+
+export const wallet = Wallet()
