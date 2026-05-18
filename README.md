@@ -15,7 +15,6 @@ Multi-chain desktop wallet for **Ethereum**, **BSC**, **Polygon**, and **Monero*
 ## Prerequisites
 
 - [Bun](https://bun.sh) 1.2+
-- macOS (Electrobun currently requires macOS)
 
 ## Getting Started
 
