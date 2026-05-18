@@ -13,6 +13,7 @@
 	import ArrowDown from '@lucide/svelte/icons/arrow-down'
 	import ArrowUp from '@lucide/svelte/icons/arrow-up'
 	import Fingerprint from '@lucide/svelte/icons/fingerprint'
+	import Loader from '$lib/components/loader.svelte'
 	import { navigate } from 'sv-router/generated'
 
 	const w = wallet
@@ -65,13 +66,6 @@
 				</CardContent>
 			</Card>
 		{:else if w.accountType === 'monero'}
-			<div class="flex items-center justify-center gap-1 flex-wrap" role="group">
-				<button
-					class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-primary text-primary-foreground">
-					Monero
-				</button>
-			</div>
-
 			{#if w.moneroDownloading}
 			<Card>
 				<CardContent>
@@ -96,7 +90,10 @@
 				</CardHeader>
 				<CardContent>
 					<Button onclick={() => w.moneroStart()} disabled={w.loading}>
-						{w.loading ? 'Starting...' : 'Start'}
+						{#if w.loading}
+							<Loader />
+						{/if}
+						Start
 					</Button>
 				</CardContent>
 			</Card>
@@ -235,7 +232,10 @@
 
 					<div class="flex gap-2">
 						<Button onclick={() => { w.moneroRefresh(); w.moneroFetchAccounts(); }} disabled={w.loading}>
-							{w.loading ? 'Refreshing...' : 'Refresh'}
+							{#if w.loading}
+								<Loader />
+							{/if}
+							Refresh
 						</Button>
 						<Button variant="outline" onclick={() => w.moneroStop()}>
 							Stop
@@ -276,7 +276,11 @@
 					<CardTitle>Transactions</CardTitle>
 				</CardHeader>
 				<CardContent>
-					{#if w.moneroTxs.length === 0}
+					{#if w.loading}
+						<div class="flex justify-center py-4">
+							<Loader />
+						</div>
+					{:else if w.moneroTxs.length === 0}
 						<p class="text-muted-foreground text-xs">No transactions found</p>
 					{:else}
 						<div class="max-h-96 space-y-1 overflow-y-auto">
