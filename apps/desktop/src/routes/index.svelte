@@ -35,7 +35,7 @@
 					<Button
 						onclick={async () => { await w.login('multi'); navigate('/multicoin') }}
 						class="w-full">
-						Multi Coins (ETH / BSC / Polygon)
+						EVM (ETH / BSC / Polygon)
 					</Button>
 					<Button
 						onclick={async () => { await w.login('monero'); navigate('/monero') }}

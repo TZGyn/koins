@@ -63,7 +63,7 @@ apps/desktop/
 - **Monero via RPC, not WASM**: `monero-ts`'s WASM wallet (`MoneroWalletFull`) doesn't work in Bun because the C++ HTTP client fails at runtime. Instead, `monero-wallet-rpc` runs as a child process.
 - **SQLite cache**: All chain data (tx history, receipts, token metadata) cached in SQLite via Drizzle, not localStorage.
 - **Biometric auth**: Uses a Swift binary spawned via `Bun.spawnSync()` (not `dlopen` — Bun crashes on ObjC runtime; not `node-mac-auth` — fragile node-gyp chain).
-- **Separate account types**: Multi Coins and Monero are separate account types with their own seed formats and auth flows.
+- **Separate account types**: EVM and Monero are separate account types with their own seed formats and auth flows.
 
 ## Dependencies
 
