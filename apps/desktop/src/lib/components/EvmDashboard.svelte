@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { electrobun, type TxEntry } from '$lib/electrobun.js'
 	import {
-		wallet,
+		evmWallet as wallet,
 		type NetworkId,
-	} from '$lib/states/wallet.svelte.js'
+	} from '$lib/states/evm-wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
 	import { navigate } from 'sv-router/generated'
@@ -170,7 +170,7 @@
 {:else}
 	<div class="flex flex-col gap-4">
 		<div class="flex gap-1 justify-center" role="group">
-			{#each w.evmNetworks as net}
+			{#each w.networks as net}
 				<button
 					class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors {w.network ===
 					net.id

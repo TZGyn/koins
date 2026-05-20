@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { wallet, atomicToXmr } from '$lib/states/wallet.svelte.js'
+	import { moneroWallet, atomicToXmr } from '$lib/states/monero-wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
 	import { Input } from '$lib/components/ui/input/index.js'
@@ -17,7 +17,7 @@
 	import Loader from '$lib/components/loader.svelte'
 	import { navigate } from 'sv-router/generated'
 
-	const w = wallet
+	const w = moneroWallet
 
 	let moneroWalletName = $state('')
 	let moneroWalletPass = $state('')
@@ -33,7 +33,7 @@
 			initStarted = true
 			w.init().then(async () => {
 				if (w.accountType === 'monero') return
-				await w.login('monero')
+				await w.login()
 			})
 		}
 	})
@@ -44,52 +44,34 @@
 		{#if !w.ready}
 			<p class="text-center text-muted-foreground text-sm mt-8">Loading...</p>
 		{:else if !w.accountType}
-			<Card>
-				<CardHeader class="text-center">
-					<CardTitle>Welcome</CardTitle>
-					<CardDescription>Choose an account type to get started</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div class="flex flex-col gap-3">
-						<Button
-							onclick={async () => { await w.login('multi'); navigate('/multicoin') }}
-							variant="outline"
-							class="w-full">
-							EVM (ETH / BSC / Polygon)
-						</Button>
-						<Button
-							onclick={() => w.login('monero')}
-							class="w-full">
-							Monero
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
+			<p class="text-center text-muted-foreground text-sm mt-8">
+				<a href="/" class="underline">Go to welcome page</a> to get started
+			</p>
 		{:else if w.accountType === 'monero'}
-			{#if w.moneroDownloading}
+			{#if w.downloading}
 			<Card>
 				<CardContent>
 					<p class="text-muted-foreground text-xs">Downloading Monero binary (70MB)...</p>
 				</CardContent>
 			</Card>
-		{:else if !w.moneroInstalled}
+		{:else if !w.installed}
 			<Card>
 				<CardHeader>
 					<CardTitle>Monero Setup</CardTitle>
 					<CardDescription>Download monero-wallet-rpc to get started</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<Button onclick={() => w.moneroDownload()}>Download (~70MB)</Button>
+					<Button onclick={() => w.download()}>Download (~70MB)</Button>
 				</CardContent>
 			</Card>
-		{:else if !w.moneroRunning}
+		{:else if !w.running}
 			<Card>
 				<CardHeader>
 					<CardTitle>Monero Wallet</CardTitle>
 					<CardDescription>Start the wallet RPC server to connect to the Monero network</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<Button onclick={() => w.moneroStart()} disabled={w.loading}>
+					<Button onclick={() => w.start()} disabled={w.loading}>
 						{#if w.loading}
 							<Loader />
 						{/if}
@@ -97,22 +79,22 @@
 					</Button>
 				</CardContent>
 			</Card>
-		{:else if !w.moneroWalletOpen}
+		{:else if !w.walletOpen}
 			<Card>
 				<CardHeader>
 					<CardTitle>Monero Wallet</CardTitle>
 					<CardDescription>
-						{w.moneroWallets.length > 0
-							? `${w.moneroWallets.length} wallet${w.moneroWallets.length > 1 ? 's' : ''} found on disk`
+						{w.wallets.length > 0
+							? `${w.wallets.length} wallet${w.wallets.length > 1 ? 's' : ''} found on disk`
 							: 'No existing wallets found'}
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<div class="flex flex-col gap-3">
-						{#if w.moneroWallets.length > 0}
+						{#if w.wallets.length > 0}
 							<p class="text-xs font-medium">Select a wallet to open:</p>
 							<div class="flex flex-wrap gap-2">
-								{#each w.moneroWallets as name}
+								{#each w.wallets as name}
 									<Button
 										variant={moneroSelectedWallet === name ? 'default' : 'outline'}
 										onclick={() => { moneroSelectedWallet = name; moneroSelectedWalletPass = '' }}
@@ -126,10 +108,10 @@
 									{#if w.biometricAvailable}
 										<Button
 											onclick={async () => {
-												const ok = await w.unlockWithBiometrics()
+												const ok = await w.biometricAuth()
 												if (ok) {
-													await w.moneroOpenExistingWallet(moneroSelectedWallet)
-													if (!w.moneroWalletOpen) w.error = 'No password saved for this wallet'
+													await w.openExistingWallet(moneroSelectedWallet)
+													if (!w.walletOpen) w.error = 'No password saved for this wallet'
 												}
 											}}
 											disabled={w.loading}>
@@ -144,7 +126,7 @@
 											bind:value={moneroSelectedWalletPass}
 										/>
 										<Button
-											onclick={() => w.moneroOpenExistingWallet(moneroSelectedWallet, moneroSelectedWalletPass)}
+											onclick={() => w.openExistingWallet(moneroSelectedWallet, moneroSelectedWalletPass)}
 											disabled={w.loading || !moneroSelectedWalletPass}
 										>
 											Open
@@ -169,7 +151,7 @@
 							<Button
 								onclick={async () => {
 									const pw = moneroUseBiometric ? crypto.randomUUID() : moneroWalletPass
-									const result = await w.moneroCreateWallet(moneroWalletName, pw, moneroUseBiometric)
+									const result = await w.createWallet(moneroWalletName, pw, moneroUseBiometric)
 									moneroMnemonic = result.mnemonic
 								}}
 								disabled={w.loading || !moneroWalletName || (!moneroUseBiometric && !moneroWalletPass)}>
@@ -184,7 +166,7 @@
 							<Input type="password" placeholder="Password" bind:value={moneroWalletPass} />
 						{/if}
 						<Button
-							onclick={() => w.moneroRestoreWallet(moneroWalletName, moneroUseBiometric ? crypto.randomUUID() : moneroWalletPass, moneroMnemonic, moneroRestoreHeight, moneroUseBiometric)}
+							onclick={() => w.restoreWallet(moneroWalletName, moneroUseBiometric ? crypto.randomUUID() : moneroWalletPass, moneroMnemonic, moneroRestoreHeight, moneroUseBiometric)}
 							disabled={w.loading || !moneroWalletName || (!moneroUseBiometric && !moneroWalletPass) || !moneroMnemonic.trim()}>
 							Restore Wallet
 						</Button>
@@ -198,27 +180,27 @@
 					<div class="flex items-center justify-between">
 						<CardTitle>Monero Wallet</CardTitle>
 						<div class="flex items-center gap-1.5">
-							<div class="size-2 rounded-full {w.moneroConnected ? 'bg-green-500' : 'bg-red-500'}"></div>
-							<span class="text-xs text-muted-foreground">{w.moneroConnected ? 'Connected' : 'Disconnected'}</span>
+							<div class="size-2 rounded-full {w.connected ? 'bg-green-500' : 'bg-red-500'}"></div>
+							<span class="text-xs text-muted-foreground">{w.connected ? 'Connected' : 'Disconnected'}</span>
 						</div>
 					</div>
 					<CardDescription>
-						{#if w.moneroHeight < w.moneroDaemonHeight}
-							Scanning: {w.moneroHeight.toLocaleString()} / {w.moneroDaemonHeight.toLocaleString()}
+						{#if w.height < w.daemonHeight}
+							Scanning: {w.height.toLocaleString()} / {w.daemonHeight.toLocaleString()}
 						{:else}
-							Height: {w.moneroHeight.toLocaleString()}
+							Height: {w.height.toLocaleString()}
 						{/if}
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<div class="mb-4 space-y-1">
 						<p class="font-medium text-xs">Address</p>
-						<p class="font-mono text-xs break-all">{w.moneroAddress}</p>
+						<p class="font-mono text-xs break-all">{w.address}</p>
 						<p class="mt-2 font-medium text-xs">Balance</p>
-						<p class="font-mono text-lg">{w.moneroBalance} XMR</p>
-						{#if w.moneroUnlockedAtomic !== w.moneroBalAtomic}
+						<p class="font-mono text-lg">{w.balance} XMR</p>
+						{#if w.unlockedAtomic !== w.balAtomic}
 							<p class="text-xs text-muted-foreground">
-								Unlocked: {w.moneroUnlocked} XMR
+								Unlocked: {w.unlocked} XMR
 							</p>
 						{/if}
 					</div>
@@ -231,7 +213,7 @@
 					{/if}
 
 					<div class="flex gap-2">
-						<Button onclick={() => { w.moneroRefresh(); w.moneroFetchAccounts(); }} disabled={w.loading}>
+						<Button onclick={() => { w.refresh(); w.fetchAccounts(); }} disabled={w.loading}>
 							{#if w.loading}
 								<Loader />
 							{/if}
@@ -257,11 +239,11 @@
 						<div class="flex justify-center py-4">
 							<Loader />
 						</div>
-					{:else if w.moneroTxs.length === 0}
+					{:else if w.txs.length === 0}
 						<p class="text-muted-foreground text-xs">No transactions found</p>
 					{:else}
 						<div class="max-h-96 space-y-1 overflow-y-auto">
-							{#each w.moneroTxs as tx}
+							{#each w.txs as tx}
 								<div class="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs">
 									<div class="shrink-0 mt-0.5 {tx.direction === 'in' ? 'text-green-500' : 'text-muted-foreground'}">
 										{#if tx.direction === 'in'}
@@ -296,11 +278,11 @@
 				<CardHeader>
 					<CardTitle>Accounts & Addresses</CardTitle>
 					<CardDescription>
-						{w.moneroAccounts.length} account{w.moneroAccounts.length !== 1 ? 's' : ''}
+						{w.accounts.length} account{w.accounts.length !== 1 ? 's' : ''}
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					{#each w.moneroAccounts as account}
+					{#each w.accounts as account}
 						<div class="mb-3 rounded-md bg-muted p-3">
 							<div class="mb-1 flex items-center justify-between">
 								<p class="text-xs font-medium">Account {account.index}</p>

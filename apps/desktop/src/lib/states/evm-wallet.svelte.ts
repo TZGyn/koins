@@ -1,0 +1,321 @@
+import { mnemonicToAccount } from 'viem/accounts'
+import { createPublicClient, http, formatEther } from 'viem'
+import { electrobun, type TxEntry } from '$lib/electrobun'
+import { tryCatch } from '@koins/utils'
+import { moneroWallet } from './monero-wallet.svelte.js'
+
+export const networks = [
+	{
+		id: 'bsc',
+		name: 'BNB Smart Chain',
+		rpc: 'https://bsc-dataseed.binance.org',
+		symbol: 'BNB',
+		chainid: '56',
+		explorerUrl: 'https://bscscan.com/tx/',
+	},
+	{
+		id: 'polygon',
+		name: 'Polygon',
+		rpc: 'https://polygon-bor.publicnode.com',
+		symbol: 'POL',
+		chainid: '137',
+		explorerUrl: 'https://polygonscan.com/tx/',
+	},
+	{
+		id: 'eth',
+		name: 'Ethereum',
+		rpc: 'https://ethereum-rpc.publicnode.com',
+		symbol: 'ETH',
+		chainid: '1',
+		explorerUrl: 'https://etherscan.io/tx/',
+	},
+] as const
+
+export type NetworkId = (typeof networks)[number]['id']
+
+export type TokenBalance = {
+	symbol: string
+	balance: string
+	contractAddress: string
+	logo?: string
+}
+
+export type AccountType = 'multi' | 'monero'
+
+export const EvmWallet = () => {
+	let accountType = $state<AccountType | null>(null)
+	let ready = $state(false)
+	let biometricAvailable = $state(false)
+	let seed = $state('')
+	let address = $state('')
+	let balance = $state('0')
+	let tokenBalances = $state<TokenBalance[]>([])
+	let network = $state<NetworkId>('eth')
+	let vaultExists = $state(false)
+	let apiKey = $state('')
+	let transactions = $state<TxEntry[]>([])
+	let passwordHash = $state('')
+	let loading = $state(false)
+	let error = $state('')
+
+	const net = () => networks.find((n) => n.id === network)!
+
+	async function hashPassword(password: string, salt?: string): Promise<{ salt: string; hash: string }> {
+		const s = salt ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('')
+		const enc = new TextEncoder()
+		const key = await crypto.subtle.importKey('raw', enc.encode(password + s), 'PBKDF2', false, ['deriveBits'])
+		const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(s), iterations: 100_000, hash: 'SHA-256' }, key, 256)
+		const hash = Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, '0')).join('')
+		return { salt: s, hash }
+	}
+
+	const checkBiometric = async () => {
+		if (!electrobun.rpc) return
+		const [ok] = await tryCatch(
+			electrobun.rpc.request.biometricCanAuth({}),
+		)
+		biometricAvailable = ok === true
+	}
+
+	const init = async () => {
+		if (!electrobun.rpc) return
+		const [raw] = await tryCatch(
+			electrobun.rpc.request.getSecret({ service: 'koins', name: 'vault' }),
+		)
+		vaultExists = raw !== null && raw !== undefined
+
+		const [key] = await tryCatch(
+			electrobun.rpc.request.getSecret({ service: 'koins', name: 'alchemy_key' }),
+		)
+		if (key) apiKey = key
+
+		const [ph] = await tryCatch(
+			electrobun.rpc.request.getSecret({ service: 'koins', name: 'vault_password' }),
+		)
+		if (ph) passwordHash = ph
+
+		await moneroWallet.checkStatus()
+		if (moneroWallet.installed && !moneroWallet.running && !moneroWallet.downloading) {
+			await moneroWallet.start()
+			await moneroWallet.checkStatus()
+		}
+		await checkBiometric()
+		ready = true
+	}
+
+	const login = async (type: AccountType) => {
+		accountType = type
+		if (type === 'multi') {
+			if (seed) await switchNetwork(network)
+		} else if (type === 'monero') {
+			if (moneroWallet.installed && !moneroWallet.running) {
+				await moneroWallet.start()
+				await moneroWallet.checkStatus()
+			}
+			await moneroWallet.listWallets()
+		}
+	}
+
+	const logout = async () => {
+		await moneroWallet.stop()
+		accountType = null
+		seed = ''
+		address = ''
+		balance = '0'
+		tokenBalances = []
+		transactions = []
+		error = ''
+	}
+
+	const loadSeed = async () => {
+		if (!electrobun.rpc) return false
+		const [raw] = await tryCatch(
+			electrobun.rpc.request.getSecret({ service: 'koins', name: 'vault' }),
+		)
+		if (!raw) return false
+		seed = raw
+		await refresh()
+		return true
+	}
+
+	const unlockWithBiometrics = async () => {
+		if (!electrobun.rpc) return false
+		const [authed] = await tryCatch(
+			electrobun.rpc.request.biometricAuth({ reason: 'Unlock wallet' }),
+		)
+		if (!authed) return false
+		return loadSeed()
+	}
+
+	const unlockWithPassword = async (password: string) => {
+		if (!passwordHash) return false
+		try {
+			const { salt, hash } = JSON.parse(passwordHash)
+			const { hash: check } = await hashPassword(password, salt)
+			if (check !== hash) return false
+			return await loadSeed()
+		} catch {
+			return false
+		}
+	}
+
+	const setPassword = async (password: string) => {
+		if (!electrobun.rpc) return
+		const ph = await hashPassword(password)
+		const raw = JSON.stringify(ph)
+		await electrobun.rpc.request.setSecret({
+			service: 'koins', name: 'vault_password', value: raw,
+		})
+		passwordHash = raw
+	}
+
+	const saveVault = async (phrase: string, password?: string) => {
+		loading = true
+		error = ''
+		try {
+			mnemonicToAccount(phrase.trim())
+			await electrobun.rpc?.request.setSecret({
+				service: 'koins', name: 'vault', value: phrase.trim(),
+			})
+			if (password) {
+				const ph = await hashPassword(password)
+				await electrobun.rpc?.request.setSecret({
+					service: 'koins', name: 'vault_password', value: JSON.stringify(ph),
+				})
+				passwordHash = JSON.stringify(ph)
+			}
+			seed = phrase.trim()
+			vaultExists = true
+			await refresh()
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Invalid seed phrase'
+		} finally {
+			loading = false
+		}
+	}
+
+	const switchNetwork = async (id: NetworkId) => {
+		network = id
+		if (seed) await refresh()
+	}
+
+	const refresh = async () => {
+		if (!seed || !electrobun.rpc) return
+		loading = true
+		error = ''
+		tokenBalances = []
+		const account = mnemonicToAccount(seed)
+		address = account.address
+		const client = createPublicClient({ transport: http(net().rpc) })
+		const [nativeBal, nativeBalError] = await tryCatch(
+			client.getBalance({ address: account.address }),
+		)
+		if (nativeBalError) {
+			loading = false
+			return
+		}
+		balance = formatEther(nativeBal)
+		const [bals, balsError] = await tryCatch(
+			electrobun.rpc.request.fetchTokenBalances({
+				address, chainid: net().chainid,
+			}),
+		)
+		if (balsError) error = balsError.message
+		tokenBalances = bals ?? []
+		await fetchTxHistory()
+		loading = false
+	}
+
+	const saveApiKey = async (key: string) => {
+		await electrobun.rpc?.request.setSecret({
+			service: 'koins', name: 'alchemy_key', value: key,
+		})
+		apiKey = key
+		if (address) await fetchTxHistory()
+	}
+
+	const fetchTxHistory = async () => {
+		if (!address || !apiKey) {
+			transactions = []
+			return
+		}
+		const txs = await electrobun.rpc?.request.fetchTxHistory({
+			address, chainid: net().chainid,
+		})
+		transactions = txs ?? []
+	}
+
+	const lock = () => {
+		seed = ''
+		address = ''
+		balance = '0'
+		error = ''
+		tokenBalances = []
+		transactions = []
+	}
+
+	const reset = () => {
+		seed = ''
+		address = ''
+		balance = '0'
+		error = ''
+		tokenBalances = []
+		transactions = []
+		apiKey = ''
+		vaultExists = false
+		passwordHash = ''
+	}
+
+	const resetApp = async () => {
+		if (!electrobun.rpc) return false
+		const [ok] = await tryCatch(electrobun.rpc.request.resetApp({}))
+		if (!ok) return false
+		reset()
+		return true
+	}
+
+	return {
+		get accountType() { return accountType },
+		get ready() { return ready },
+		get biometricAvailable() { return biometricAvailable },
+		get seed() { return seed },
+		get address() { return address },
+		get balance() { return balance },
+		get tokenBalances() { return tokenBalances },
+		get network() { return network },
+		get chainid() { return net().chainid },
+		get networkName() { return net().name },
+		get symbol() { return net().symbol },
+		get explorerUrl() { return net().explorerUrl },
+		get vaultExists() { return vaultExists },
+		get networks() { return networks },
+		get apiKey() { return apiKey },
+		get transactions() { return transactions },
+		get passwordSet() { return !!passwordHash },
+		get loading() { return loading },
+		get error() { return error },
+		get isLocked() { return vaultExists && !seed },
+		set passwordHash(v: string) { passwordHash = v },
+		set vaultExists(v: boolean) { vaultExists = v },
+		set apiKey(v: string) { apiKey = v },
+		set seed(v: string) { seed = v },
+		set error(v: string) { error = v },
+		init,
+		login,
+		logout,
+		refresh,
+		saveVault,
+		switchNetwork,
+		saveApiKey,
+		fetchTxHistory,
+		loadSeed,
+		lock,
+		reset,
+		resetApp,
+		unlockWithBiometrics,
+		unlockWithPassword,
+		setPassword,
+	}
+}
+
+export const evmWallet = EvmWallet()

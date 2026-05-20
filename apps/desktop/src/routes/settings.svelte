@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { wallet } from '$lib/states/wallet.svelte.js'
+	import { evmWallet as wallet } from '$lib/states/evm-wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import {
 		Card,

@@ -3,7 +3,7 @@
 		electrobun,
 		type TransactionDetails,
 	} from '$lib/electrobun.js'
-	import { networks } from '$lib/states/wallet.svelte.js'
+	import { networks } from '$lib/states/evm-wallet.svelte.js'
 	import { navigate, route } from 'sv-router/generated'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import {

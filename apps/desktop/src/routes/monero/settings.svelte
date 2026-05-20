@@ -1,18 +1,7 @@
 <script lang="ts">
-	import { wallet } from '$lib/states/wallet.svelte.js'
-	import { Button } from '$lib/components/ui/button/index.js'
-	import { Input } from '$lib/components/ui/input/index.js'
-	import {
-		Card,
-		CardContent,
-		CardDescription,
-		CardHeader,
-		CardTitle,
-	} from '$lib/components/ui/card/index.js'
-	import { navigate } from 'sv-router/generated'
-	import Loader from '$lib/components/loader.svelte'
+	import { moneroWallet } from '$lib/states/monero-wallet.svelte.js'
 
-	const w = wallet
+	const w = moneroWallet
 
 	let moneroSettingsPw = $state('')
 
@@ -35,7 +24,7 @@
 						<Button
 							variant="outline"
 							size="sm"
-							onclick={async () => { await w.moneroStop(); await w.moneroStart() }}
+							onclick={async () => { await w.stop(); await w.start() }}
 							disabled={w.loading}>
 							{#if w.loading}
 								<Loader />
@@ -50,7 +39,7 @@
 							<div class="flex gap-2 items-end">
 								<Input type="password" placeholder="Wallet password" bind:value={moneroSettingsPw} />
 								<Button size="sm" onclick={async () => {
-									await w.moneroStorePassword(w.moneroWalletName, moneroSettingsPw)
+									await w.moneroStorePassword(w.walletName, moneroSettingsPw)
 									moneroSettingsPw = ''
 									w.error = ''
 								}} disabled={!moneroSettingsPw || w.loading}>Save</Button>
