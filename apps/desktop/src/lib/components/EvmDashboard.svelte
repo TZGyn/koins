@@ -19,6 +19,10 @@
 	import QrCodeIcon from '@lucide/svelte/icons/qr-code'
 	import SettingsIcon from '@lucide/svelte/icons/settings'
 	import Fingerprint from '@lucide/svelte/icons/fingerprint'
+	import Trash2 from '@lucide/svelte/icons/trash-2'
+	import Plus from '@lucide/svelte/icons/plus'
+	import WalletIcon from '@lucide/svelte/icons/wallet'
+	import LockKeyhole from '@lucide/svelte/icons/lock-keyhole'
 	import * as Dialog from '$lib/components/ui/dialog/index.js'
 	import QRCode from 'qrcode'
 	import Loader from './loader.svelte'
@@ -57,9 +61,11 @@
 	let inputSeed = $state('')
 	let inputPassword = $state('')
 	let inputUnlockPassword = $state('')
+	let inputWalletName = $state('')
 	let apiKeyInput = $state('')
 	let qrDataUrl = $state('')
 	let qrDialogOpen = $state(false)
+	let showCreateForm = $state(false)
 	$effect(() => {
 		if (w.address) {
 			QRCode.toDataURL(w.address, { width: 256, margin: 1 }).then(
@@ -91,43 +97,100 @@
 		class="mx-auto mt-16 max-w-md text-center text-muted-foreground text-sm">
 		Loading...
 	</div>
-{:else if !w.vaultExists}
+{:else if w.wallets.length === 0 || showCreateForm}
 	<Card>
 		<CardHeader>
-			<CardTitle>Import Wallet</CardTitle>
+			<CardTitle>
+				{#if showCreateForm}
+					{@const cur = w.currentWallet}
+					{cur ? `Add Another Wallet` : `Import Wallet`}
+				{:else}
+					Import Wallet
+				{/if}
+			</CardTitle>
 			<CardDescription>
-				Enter your seed phrase to save it securely in your system
-				keychain
+				Name your wallet and enter your seed phrase to save it securely
 			</CardDescription>
 		</CardHeader>
 		<CardContent>
 			<div class="flex flex-col gap-3">
+				<input
+					type="text"
+					placeholder="Wallet name (e.g. Main, Savings)"
+					class="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 font-mono text-xs"
+					bind:value={inputWalletName} />
 				<Textarea
 					placeholder="Enter your 12 or 24 word seed phrase"
 					bind:value={inputSeed} />
 				<input
 					type="password"
-					placeholder="Set a password (optional, used when Touch ID is unavailable)"
+					placeholder="Set a password (optional)"
 					class="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 font-mono text-xs"
 					bind:value={inputPassword} />
-				<Button
-					onclick={() =>
-						w.saveVault(inputSeed, inputPassword || undefined)}
-					disabled={w.loading || !inputSeed.trim()}>
-					{w.loading ? 'Saving...' : 'Save to Keychain'}
-				</Button>
+				<div class="flex gap-2">
+					<Button
+						onclick={() =>
+							w.createWallet(inputWalletName, inputSeed, inputPassword || undefined)}
+						disabled={w.loading || !inputSeed.trim() || !inputWalletName.trim()}>
+						{w.loading ? 'Saving...' : 'Save Wallet'}
+					</Button>
+					{#if showCreateForm}
+						<Button variant="outline" onclick={() => (showCreateForm = false)}>
+							Cancel
+						</Button>
+					{/if}
+				</div>
 			</div>
 			{#if w.error}
 				<p class="mt-3 text-red-500">{w.error}</p>
 			{/if}
 		</CardContent>
 	</Card>
+{:else if !w.currentWalletId}
+	<Card>
+		<CardHeader>
+			<CardTitle>Wallets</CardTitle>
+			<CardDescription>Select a wallet to use</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<div class="flex flex-col gap-2">
+				{#each w.wallets as wal}
+					<button
+						onclick={async () => {
+							if (wal.hasPassword) {
+								await w.selectWallet(wal.id)
+							} else {
+								await w.selectAndUnlockWallet(wal.id)
+							}
+						}}
+						class="flex w-full cursor-pointer items-center gap-3 rounded-md border border-input p-3 text-left hover:bg-muted transition-colors">
+						<WalletIcon size={20} class="shrink-0 text-muted-foreground" />
+						<div class="flex-1 min-w-0">
+							<p class="font-medium text-sm">{wal.name}</p>
+							<p class="text-xs text-muted-foreground">
+								{new Date(wal.createdAt).toLocaleDateString()}
+							</p>
+						</div>
+						<div class="flex items-center gap-1">
+							{#if wal.hasPassword}
+								<LockKeyhole size={14} class="text-muted-foreground" />
+							{/if}
+						</div>
+					</button>
+				{/each}
+				<Button variant="outline" onclick={() => (showCreateForm = true)} class="mt-2">
+					<Plus size={16} />
+					Add Wallet
+				</Button>
+			</div>
+		</CardContent>
+	</Card>
 {:else if w.isLocked}
 	<Card>
 		<CardHeader>
-			<CardTitle>Wallet Locked</CardTitle>
+			<CardTitle>{w.currentWallet?.name ?? 'Wallet'} Locked</CardTitle>
 			<CardDescription>
-				Your seed is stored in the system keychain
+				Unlock to access your wallet
 			</CardDescription>
 		</CardHeader>
 		<CardContent>
@@ -140,7 +203,7 @@
 						{w.loading ? 'Unlocking...' : 'Unlock with Touch ID'}
 					</Button>
 				{/if}
-				{#if w.passwordSet}
+				{#if w.currentPasswordHash}
 					<div class="flex gap-2 items-end">
 						<input
 							type="password"
@@ -161,6 +224,9 @@
 						</Button>
 					</div>
 				{/if}
+				<Button variant="outline" onclick={() => w.clearSelection()}>
+					Pick another wallet
+				</Button>
 			</div>
 			{#if w.error}
 				<p class="mt-3 text-red-500">{w.error}</p>
@@ -186,7 +252,9 @@
 			<CardHeader>
 				<div class="flex items-center justify-between">
 					<div>
-						<CardTitle>Wallet</CardTitle>
+						<CardTitle>
+							{w.currentWallet?.name ?? 'Wallet'}
+						</CardTitle>
 						<CardDescription>Your wallet is unlocked</CardDescription>
 					</div>
 				</div>
@@ -268,7 +336,7 @@
 					<p class="mb-3 text-red-500">{w.error}</p>
 				{/if}
 
-				<div class="flex gap-2">
+				<div class="flex gap-2 flex-wrap">
 					<Button onclick={() => w.refresh()} disabled={w.loading}>
 						{#if w.loading}
 							<Loader />
@@ -279,6 +347,12 @@
 						variant="outline"
 						onclick={() => navigate('/settings')}>
 						<SettingsIcon size={16} />
+					</Button>
+					<Button
+						variant="outline"
+						onclick={() => w.lock()}>
+						<LockKeyhole size={16} />
+						Lock
 					</Button>
 					<Button
 						variant="outline"

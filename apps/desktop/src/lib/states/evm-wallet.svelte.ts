@@ -1,6 +1,6 @@
 import { mnemonicToAccount } from 'viem/accounts'
 import { createPublicClient, http, formatEther } from 'viem'
-import { electrobun, type TxEntry } from '$lib/electrobun'
+import { electrobun, type TxEntry, type EvmWalletInfo } from '$lib/electrobun'
 import { tryCatch } from '@koins/utils'
 import { moneroWallet } from './monero-wallet.svelte.js'
 
@@ -51,12 +51,13 @@ export const EvmWallet = () => {
 	let balance = $state('0')
 	let tokenBalances = $state<TokenBalance[]>([])
 	let network = $state<NetworkId>('eth')
-	let vaultExists = $state(false)
 	let apiKey = $state('')
 	let transactions = $state<TxEntry[]>([])
-	let passwordHash = $state('')
 	let loading = $state(false)
 	let error = $state('')
+	let wallets = $state<EvmWalletInfo[]>([])
+	let currentWalletId = $state<string | null>(null)
+	let currentPasswordHash = $state<string | null>(null)
 
 	const net = () => networks.find((n) => n.id === network)!
 
@@ -79,20 +80,21 @@ export const EvmWallet = () => {
 
 	const init = async () => {
 		if (!electrobun.rpc) return
-		const [raw] = await tryCatch(
-			electrobun.rpc.request.getSecret({ service: 'koins', name: 'vault' }),
+
+		const [walletList] = await tryCatch(
+			electrobun.rpc.request.evmListWallets({}),
 		)
-		vaultExists = raw !== null && raw !== undefined
+		if (walletList) {
+			wallets = walletList
+			if (walletList.length === 1 && !currentWalletId) {
+				currentWalletId = walletList[0].id
+			}
+		}
 
 		const [key] = await tryCatch(
 			electrobun.rpc.request.getSecret({ service: 'koins', name: 'alchemy_key' }),
 		)
 		if (key) apiKey = key
-
-		const [ph] = await tryCatch(
-			electrobun.rpc.request.getSecret({ service: 'koins', name: 'vault_password' }),
-		)
-		if (ph) passwordHash = ph
 
 		await moneroWallet.checkStatus()
 		if (moneroWallet.installed && !moneroWallet.running && !moneroWallet.downloading) {
@@ -119,21 +121,29 @@ export const EvmWallet = () => {
 	const logout = async () => {
 		await moneroWallet.stop()
 		accountType = null
+		clearWallet()
+	}
+
+	const clearWallet = () => {
 		seed = ''
 		address = ''
 		balance = '0'
 		tokenBalances = []
 		transactions = []
 		error = ''
+		currentPasswordHash = null
 	}
 
-	const loadSeed = async () => {
+	const unlockWallet = async (walletId: string) => {
 		if (!electrobun.rpc) return false
-		const [raw] = await tryCatch(
-			electrobun.rpc.request.getSecret({ service: 'koins', name: 'vault' }),
+		const wallet = wallets.find((w) => w.id === walletId)
+		if (!wallet) return false
+		currentWalletId = walletId
+		const [vaultSeed] = await tryCatch(
+			electrobun.rpc.request.evmGetSeed({ vaultKey: wallet.vaultKey }),
 		)
-		if (!raw) return false
-		seed = raw
+		if (!vaultSeed) return false
+		seed = vaultSeed
 		await refresh()
 		return true
 	}
@@ -144,54 +154,122 @@ export const EvmWallet = () => {
 			electrobun.rpc.request.biometricAuth({ reason: 'Unlock wallet' }),
 		)
 		if (!authed) return false
-		return loadSeed()
+		if (!currentWalletId) return false
+		await loadSeedForWallet(currentWalletId)
+		return !!seed
 	}
 
 	const unlockWithPassword = async (password: string) => {
-		if (!passwordHash) return false
+		if (!currentPasswordHash || !currentWalletId) return false
 		try {
-			const { salt, hash } = JSON.parse(passwordHash)
+			const { salt, hash } = JSON.parse(currentPasswordHash)
 			const { hash: check } = await hashPassword(password, salt)
 			if (check !== hash) return false
-			return await loadSeed()
+			return loadSeedForWallet(currentWalletId)
 		} catch {
 			return false
 		}
 	}
 
-	const setPassword = async (password: string) => {
-		if (!electrobun.rpc) return
-		const ph = await hashPassword(password)
-		const raw = JSON.stringify(ph)
-		await electrobun.rpc.request.setSecret({
-			service: 'koins', name: 'vault_password', value: raw,
-		})
-		passwordHash = raw
+	const loadSeedForWallet = async (walletId: string) => {
+		if (!electrobun.rpc) return false
+		const wallet = wallets.find((w) => w.id === walletId)
+		if (!wallet) return false
+		const [vaultSeed] = await tryCatch(
+			electrobun.rpc.request.evmGetSeed({ vaultKey: wallet.vaultKey }),
+		)
+		if (!vaultSeed) return false
+		seed = vaultSeed
+		await refresh()
+		return true
 	}
 
-	const saveVault = async (phrase: string, password?: string) => {
+	const selectWallet = async (walletId: string) => {
+		currentWalletId = walletId
+		clearWallet()
+		const wallet = wallets.find((w) => w.id === walletId)
+		if (!wallet) return
+		if (wallet.hasPassword && electrobun.rpc) {
+			const [ph] = await tryCatch(
+				electrobun.rpc.request.getSecret({
+					service: 'koins',
+					name: `evm_auth_${walletId}`,
+				}),
+			)
+			if (ph) {
+				currentPasswordHash = ph
+			}
+		} else {
+			currentPasswordHash = null
+		}
+	}
+
+	const selectAndUnlockWallet = async (walletId: string) => {
+		await selectWallet(walletId)
+		if (!currentPasswordHash && biometricAvailable) {
+			return unlockWithBiometrics()
+		}
+		return false
+	}
+
+	const createWallet = async (name: string, phrase: string, password?: string) => {
 		loading = true
 		error = ''
 		try {
 			mnemonicToAccount(phrase.trim())
-			await electrobun.rpc?.request.setSecret({
-				service: 'koins', name: 'vault', value: phrase.trim(),
-			})
+			let passwordHash: string | undefined
 			if (password) {
 				const ph = await hashPassword(password)
-				await electrobun.rpc?.request.setSecret({
-					service: 'koins', name: 'vault_password', value: JSON.stringify(ph),
-				})
 				passwordHash = JSON.stringify(ph)
 			}
+			const [result, resultError] = await tryCatch(
+				electrobun.rpc!.request.evmCreateWallet({
+					name,
+					phrase: phrase.trim(),
+					passwordHash,
+				}),
+			)
+			if (resultError) throw resultError
+
+			if (passwordHash) {
+				await electrobun.rpc?.request.setSecret({
+					service: 'koins',
+					name: `evm_auth_${result.id}`,
+					value: passwordHash,
+				})
+			}
+
+			const newWallet: EvmWalletInfo = {
+				id: result.id,
+				name,
+				hasPassword: !!passwordHash,
+				vaultKey: `evm_seed_${result.id}`,
+				createdAt: result.createdAt,
+			}
+			wallets = [...wallets, newWallet]
+			currentWalletId = result.id
+			if (passwordHash) currentPasswordHash = passwordHash
 			seed = phrase.trim()
-			vaultExists = true
 			await refresh()
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Invalid seed phrase'
 		} finally {
 			loading = false
 		}
+	}
+
+	const deleteWallet = async (walletId: string) => {
+		await electrobun.rpc?.request.evmDeleteWallet({ id: walletId })
+		wallets = wallets.filter((w) => w.id !== walletId)
+		if (currentWalletId === walletId) {
+			clearWallet()
+			currentWalletId = wallets.length > 0 ? wallets[0].id : null
+		}
+	}
+
+	const clearSelection = () => {
+		clearWallet()
+		currentWalletId = null
 	}
 
 	const switchNetwork = async (id: NetworkId) => {
@@ -246,24 +324,14 @@ export const EvmWallet = () => {
 	}
 
 	const lock = () => {
-		seed = ''
-		address = ''
-		balance = '0'
-		error = ''
-		tokenBalances = []
-		transactions = []
+		clearWallet()
 	}
 
 	const reset = () => {
-		seed = ''
-		address = ''
-		balance = '0'
-		error = ''
-		tokenBalances = []
-		transactions = []
+		clearWallet()
 		apiKey = ''
-		vaultExists = false
-		passwordHash = ''
+		wallets = []
+		currentWalletId = null
 	}
 
 	const resetApp = async () => {
@@ -287,34 +355,37 @@ export const EvmWallet = () => {
 		get networkName() { return net().name },
 		get symbol() { return net().symbol },
 		get explorerUrl() { return net().explorerUrl },
-		get vaultExists() { return vaultExists },
 		get networks() { return networks },
 		get apiKey() { return apiKey },
 		get transactions() { return transactions },
-		get passwordSet() { return !!passwordHash },
 		get loading() { return loading },
 		get error() { return error },
-		get isLocked() { return vaultExists && !seed },
-		set passwordHash(v: string) { passwordHash = v },
-		set vaultExists(v: boolean) { vaultExists = v },
+		get wallets() { return wallets },
+		get currentWalletId() { return currentWalletId },
+		get currentWallet() { return wallets.find((w) => w.id === currentWalletId) ?? null },
+		get isLocked() { return !!currentWalletId && !seed },
+		get hasWallets() { return wallets.length > 0 },
+		get currentPasswordHash() { return currentPasswordHash },
 		set apiKey(v: string) { apiKey = v },
-		set seed(v: string) { seed = v },
 		set error(v: string) { error = v },
 		init,
 		login,
 		logout,
 		refresh,
-		saveVault,
+		createWallet,
 		switchNetwork,
 		saveApiKey,
 		fetchTxHistory,
-		loadSeed,
 		lock,
 		reset,
 		resetApp,
 		unlockWithBiometrics,
 		unlockWithPassword,
-		setPassword,
+		selectWallet,
+		selectAndUnlockWallet,
+		unlockWallet,
+		deleteWallet,
+		clearSelection,
 	}
 }
 

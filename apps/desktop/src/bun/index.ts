@@ -16,6 +16,7 @@ import {
 	getTransactionDetails,
 } from './lib/transactions'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
+import { eq } from 'drizzle-orm'
 import { db } from './lib/db'
 import { join } from 'path'
 import { getENV } from './lib/get-env'
@@ -34,6 +35,7 @@ import {
 	transactions,
 	transactionReceipts,
 	txHistory,
+	evmWallets,
 } from './lib/db/schema'
 
 const env = getENV()
@@ -265,6 +267,22 @@ type RPC = {
 					connected: boolean
 				}
 			}
+			evmCreateWallet: {
+				params: { name: string; phrase: string; passwordHash?: string }
+				response: { id: string; name: string; createdAt: string }
+			}
+			evmListWallets: {
+				params: {}
+				response: Array<{ id: string; name: string; hasPassword: boolean; vaultKey: string; createdAt: string }>
+			}
+			evmGetSeed: {
+				params: { vaultKey: string }
+				response: string
+			}
+			evmDeleteWallet: {
+				params: { id: string }
+				response: void
+			}
 		}
 		messages: {}
 	}>
@@ -379,15 +397,19 @@ const rpc = BrowserView.defineRPC<RPC>({
 		requests: {
 			resetApp: async () => {
 				try {
+					const wallets = db.select().from(evmWallets).all()
 					await Promise.all([
-						Bun.secrets.delete({ service: 'koins', name: 'vault' }),
-						Bun.secrets.delete({ service: 'koins', name: 'vault_password' }),
 						Bun.secrets.delete({ service: 'koins', name: 'alchemy_key' }),
+						...wallets.flatMap((w) => [
+							Bun.secrets.delete({ service: 'koins', name: w.vaultKey }),
+							Bun.secrets.delete({ service: 'koins', name: `evm_auth_${w.id}` }),
+						]),
 					])
 					sqlite.run('DELETE FROM token_metadata')
 					sqlite.run('DELETE FROM transactions')
 					sqlite.run('DELETE FROM transaction_receipts')
 					sqlite.run('DELETE FROM tx_history')
+					sqlite.run('DELETE FROM evm_wallets')
 					console.log('[rpc] resetApp complete')
 					return true
 				} catch (e) {
@@ -748,6 +770,49 @@ const rpc = BrowserView.defineRPC<RPC>({
 					`[rpc] moneroListWallets: ${wallets.join(', ') || 'none'}`,
 				)
 				return wallets
+			},
+			evmCreateWallet: async ({ name, phrase, passwordHash }) => {
+				console.log('[rpc] evmCreateWallet:', name)
+				const id = crypto.randomUUID()
+				const vaultKey = `evm_seed_${id}`
+				await Bun.secrets.set({ service: 'koins', name: vaultKey, value: phrase })
+				await db.insert(evmWallets).values({
+					id,
+					name,
+					passwordHash: passwordHash ?? null,
+					vaultKey,
+					createdAt: new Date().toISOString(),
+				})
+				console.log('[rpc] evmCreateWallet complete:', id)
+				return { id, name, createdAt: new Date().toISOString() }
+			},
+			evmListWallets: async () => {
+				console.log('[rpc] evmListWallets')
+				const wallets = db.select().from(evmWallets).all()
+				return wallets.map((w) => ({
+					id: w.id,
+					name: w.name,
+					hasPassword: !!w.passwordHash,
+					vaultKey: w.vaultKey,
+					createdAt: w.createdAt,
+				}))
+			},
+			evmGetSeed: async ({ vaultKey }) => {
+				console.log('[rpc] evmGetSeed:', vaultKey)
+				const seed = await Bun.secrets.get({ service: 'koins', name: vaultKey })
+				if (!seed) throw new Error('Seed not found in keychain')
+				return seed
+			},
+			evmDeleteWallet: async ({ id }) => {
+				console.log('[rpc] evmDeleteWallet:', id)
+				const wallet = db.select().from(evmWallets).where(eq(evmWallets.id, id)).get()
+				if (!wallet) throw new Error('Wallet not found')
+				await Promise.all([
+					Bun.secrets.delete({ service: 'koins', name: wallet.vaultKey }),
+					Bun.secrets.delete({ service: 'koins', name: `evm_auth_${id}` }),
+				])
+				db.delete(evmWallets).where(eq(evmWallets.id, id)).run()
+				console.log('[rpc] evmDeleteWallet complete')
 			},
 		},
 		messages: {},

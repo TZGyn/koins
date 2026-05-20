@@ -89,6 +89,14 @@ export type TokenBalanceResult = {
 	logo?: string
 }
 
+export type EvmWalletInfo = {
+	id: string
+	name: string
+	hasPassword: boolean
+	vaultKey: string
+	createdAt: string
+}
+
 type RPC = {
 	bun: {
 		requests: {
@@ -211,6 +219,22 @@ type RPC = {
 			moneroListWallets: {
 				params: {}
 				response: string[]
+			}
+			evmCreateWallet: {
+				params: { name: string; phrase: string; passwordHash?: string }
+				response: { id: string; name: string; createdAt: string }
+			}
+			evmListWallets: {
+				params: {}
+				response: EvmWalletInfo[]
+			}
+			evmGetSeed: {
+				params: { vaultKey: string }
+				response: string
+			}
+			evmDeleteWallet: {
+				params: { id: string }
+				response: void
 			}
 		}
 		messages: {}

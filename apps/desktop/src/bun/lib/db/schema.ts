@@ -72,6 +72,14 @@ export const transactionReceipts = sqliteTable(
 	}),
 )
 
+export const evmWallets = sqliteTable('evm_wallets', {
+	id: text('id').primaryKey(),
+	name: text('name').notNull(),
+	passwordHash: text('password_hash'),
+	vaultKey: text('vault_key').notNull(),
+	createdAt: text('created_at').notNull(),
+})
+
 export const txHistory = sqliteTable(
 	'tx_history',
 	{
