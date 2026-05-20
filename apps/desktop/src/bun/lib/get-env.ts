@@ -1,9 +1,11 @@
-const env = Bun.env.ELECTROBUN_ENV as 'dev' | 'prod' | undefined
+const env = (Bun.env.ELECTROBUN_ENV as string) || 'dev'
+
+console.log('ENV', env)
 
 export const getENV = () => {
 	let appName
 	let dbFilename
-	if (env === 'prod') {
+	if (env === 'stable') {
 		appName = 'koins'
 		dbFilename = 'koins.db'
 	} else {
@@ -12,7 +14,7 @@ export const getENV = () => {
 	}
 
 	return {
-		env: env || 'dev',
+		env,
 		appName,
 		dbFilename,
 	}
