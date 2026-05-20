@@ -19,7 +19,6 @@
 		"@koins/utils": "workspace:*",
 		"drizzle-orm": "^1.0.0-beta.22",
 		"electrobun": "^1.18.1",
-		"ethers": "^6.16.0",
 		"mode-watcher": "^1.1.0",
 		"monero-ts": "^0.11.8",
 		"qrcode": "^1.5.4",

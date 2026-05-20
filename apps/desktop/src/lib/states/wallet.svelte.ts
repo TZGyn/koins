@@ -1,4 +1,5 @@
-import { JsonRpcProvider, HDNodeWallet, formatEther } from 'ethers'
+import { mnemonicToAccount } from 'viem/accounts'
+import { createPublicClient, http, formatEther } from 'viem'
 import { electrobun, type TxEntry, type MoneroTxEntry, type MoneroAccountEntry } from '$lib/electrobun'
 import { tryCatch } from '@koins/utils'
 
@@ -180,7 +181,7 @@ export const Wallet = () => {
 		loading = true
 		error = ''
 		try {
-			HDNodeWallet.fromPhrase(phrase.trim())
+			mnemonicToAccount(phrase.trim())
 			await electrobun.rpc?.request.setSecret({
 				service: 'koins',
 				name: 'vault',
@@ -293,11 +294,11 @@ export const Wallet = () => {
 		loading = true
 		error = ''
 		tokenBalances = []
-		const wallet = HDNodeWallet.fromPhrase(seed)
-		address = wallet.address
-		const provider = new JsonRpcProvider(net().rpc)
+		const account = mnemonicToAccount(seed)
+		address = account.address
+		const client = createPublicClient({ transport: http(net().rpc) })
 		const [nativeBal, nativeBalError] = await tryCatch(
-			provider.getBalance(wallet.address),
+			client.getBalance({ address: account.address }),
 		)
 
 		if (nativeBalError) {
@@ -309,7 +310,7 @@ export const Wallet = () => {
 
 		const [bals, balsError] = await tryCatch(
 			electrobun.rpc.request.fetchTokenBalances({
-				address: wallet.address,
+				address: address,
 				chainid: net().chainid,
 			}),
 		)

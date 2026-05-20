@@ -67,8 +67,7 @@ apps/desktop/
 
 ## Dependencies
 
-- [Ethers](https://docs.ethers.org) — EVM wallet operations
-- [Viem](https://viem.sh) — EVM chain RPC calls
+- [Viem](https://viem.sh) — EVM chain RPC calls + wallet operations
 - [monero-ts](https://github.com/woodser/monero-ts) — Monero RPC client
 - [Drizzle ORM](https://orm.drizzle.team) — SQLite schema + queries
 - [Svelte 5](https://svelte.dev) — UI framework
