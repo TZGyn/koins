@@ -9,10 +9,14 @@
 		CardTitle,
 	} from '$lib/components/ui/card/index.js'
 	import { navigate } from 'sv-router/generated'
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left'
+	import Trash2 from '@lucide/svelte/icons/trash-2'
+	import WalletIcon from '@lucide/svelte/icons/wallet'
 
 	const w = wallet
 	let confirm = $state(false)
 	let resetting = $state(false)
+	let deletingWalletId = $state<string | null>(null)
 
 	async function handleReset() {
 		resetting = true
@@ -21,10 +25,59 @@
 		resetting = false
 		confirm = false
 	}
+
+	async function handleDeleteWallet(id: string) {
+		await w.deleteWallet(id)
+		deletingWalletId = null
+		if (w.wallets.length === 0) navigate('/multicoin')
+	}
 </script>
 
 <div class="mx-auto mt-16 max-w-md">
 	<div class="flex flex-col gap-4">
+		<div class="flex items-center gap-2">
+			<Button variant="outline" size="sm" onclick={() => navigate('/multicoin')}>
+				<ArrowLeft size={16} />
+				Back
+			</Button>
+		</div>
+		{#if w.wallets.length > 0}
+			<Card>
+				<CardHeader>
+					<CardTitle>Wallets</CardTitle>
+					<CardDescription>Manage your EVM wallets</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div class="flex flex-col gap-2">
+						{#each w.wallets as wal}
+							<div class="flex items-center gap-3 rounded-md border border-input p-3">
+								<WalletIcon size={18} class="shrink-0 text-muted-foreground" />
+								<div class="flex-1 min-w-0">
+									<p class="font-medium text-sm">{wal.name}</p>
+									<p class="text-xs text-muted-foreground">
+										Created {new Date(wal.createdAt).toLocaleDateString()}
+									</p>
+								</div>
+								{#if deletingWalletId === wal.id}
+									<div class="flex items-center gap-1.5">
+										<Button size="sm" variant="destructive" onclick={() => handleDeleteWallet(wal.id)}>
+											Delete
+										</Button>
+										<Button size="sm" variant="outline" onclick={() => (deletingWalletId = null)}>
+											Cancel
+										</Button>
+									</div>
+								{:else}
+									<Button size="sm" variant="outline" onclick={() => (deletingWalletId = wal.id)}>
+										<Trash2 size={14} />
+									</Button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				</CardContent>
+			</Card>
+		{/if}
 		<Card>
 			<CardHeader>
 				<CardTitle>Settings</CardTitle>
