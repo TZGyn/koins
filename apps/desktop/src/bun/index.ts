@@ -16,6 +16,7 @@ import {
 	getTransactionDetails,
 	getCachedTransactionHistory,
 } from './lib/transactions'
+import { syncTransactionHistory } from './lib/sync'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import { eq } from 'drizzle-orm'
 import { db } from './lib/db'
@@ -184,6 +185,10 @@ type RPC = {
 					chainid: string
 				}
 				response: TxEntry[]
+			}
+			syncTxHistory: {
+				params: { address: string; chainid: string }
+				response: void
 			}
 			fetchTokenBalances: {
 				params: {
@@ -572,6 +577,13 @@ const rpc = BrowserView.defineRPC<RPC>({
 			fetchCachedTxHistory: async ({ address, chainid }) => {
 				const transfers = getCachedTransactionHistory(chainid, address)
 				return transfers.map(mapTransfer)
+			},
+			syncTxHistory: async ({ address, chainid }) => {
+				const key = await Bun.secrets.get({ service: 'koins', name: 'alchemy_key' })
+				if (!key) return
+				syncTransactionHistory(key, chainid, address).catch((e) =>
+					console.error('[sync] error:', e),
+				)
 			},
 			fetchTokenBalances: async ({ address, chainid }) => {
 				const key = await Bun.secrets.get({

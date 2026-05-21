@@ -80,6 +80,15 @@ export const evmWallets = sqliteTable('evm_wallets', {
 	createdAt: text('created_at').notNull(),
 })
 
+export const txSyncStatus = sqliteTable('tx_sync_status', {
+	chainId: text('chain_id').notNull(),
+	address: text('address').notNull(),
+	lastSyncBlock: text('last_sync_block').notNull(),
+	syncedAt: text('synced_at').notNull(),
+}, (table) => ({
+	syncUnique: uniqueIndex('sync_unique').on(table.chainId, table.address),
+}))
+
 export const txHistory = sqliteTable(
 	'tx_history',
 	{

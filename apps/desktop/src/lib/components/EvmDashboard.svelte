@@ -23,6 +23,7 @@
 	import Plus from '@lucide/svelte/icons/plus'
 	import WalletIcon from '@lucide/svelte/icons/wallet'
 	import LockKeyhole from '@lucide/svelte/icons/lock-keyhole'
+	import ExternalLink from '@lucide/svelte/icons/external-link'
 	import * as Dialog from '$lib/components/ui/dialog/index.js'
 	import QRCode from 'qrcode'
 	import Loader from './loader.svelte'
@@ -267,6 +268,11 @@
 							<p class="font-mono text-xs break-all flex-1">
 								{w.address}
 							</p>
+							<button
+								onclick={() => electrobun.rpc?.request.openExternal({ url: w.explorerAddressUrl })}
+								class="shrink-0 cursor-pointer rounded-md border p-1.5 text-muted-foreground hover:bg-muted transition-colors">
+								<ExternalLink size={16} />
+							</button>
 							{#if qrDataUrl}
 								<Dialog.Root bind:open={qrDialogOpen}>
 									<Dialog.Trigger>

@@ -287,6 +287,8 @@ export const EvmWallet = () => {
 		address = account.address
 		const client = createPublicClient({ transport: http(net().rpc) })
 
+		syncTxHistory()
+
 		;(async () => {
 			const [nativeBal] = await tryCatch(
 				client.getBalance({ address: account.address }),
@@ -307,11 +309,17 @@ export const EvmWallet = () => {
 		})()
 	}
 
+	const syncTxHistory = () => {
+		if (!address || !apiKey || !electrobun.rpc) return
+		electrobun.rpc.request.syncTxHistory({ address, chainid: net().chainid })
+	}
+
 	const saveApiKey = async (key: string) => {
 		await electrobun.rpc?.request.setSecret({
 			service: 'koins', name: 'alchemy_key', value: key,
 		})
 		apiKey = key
+		syncTxHistory()
 		if (address) await fetchTxHistory()
 	}
 
@@ -358,6 +366,7 @@ export const EvmWallet = () => {
 		get networkName() { return net().name },
 		get symbol() { return net().symbol },
 		get explorerUrl() { return net().explorerUrl },
+		get explorerAddressUrl() { return address ? `${net().explorerUrl.replace('/tx/', '/address/')}${address}` : '' },
 		get networks() { return networks },
 		get apiKey() { return apiKey },
 		get transactions() { return transactions },
@@ -391,6 +400,7 @@ export const EvmWallet = () => {
 		unlockWallet,
 		deleteWallet,
 		clearSelection,
+		syncTxHistory,
 	}
 }
 

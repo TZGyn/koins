@@ -141,6 +141,10 @@ type RPC = {
 				}
 				response: TxEntry[]
 			}
+			syncTxHistory: {
+				params: { address: string; chainid: string }
+				response: void
+			}
 			fetchTokenBalances: {
 				params: {
 					address: string
