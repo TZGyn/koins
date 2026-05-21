@@ -134,6 +134,13 @@ type RPC = {
 				}
 				response: TxEntry[]
 			}
+			fetchCachedTxHistory: {
+				params: {
+					address: string
+					chainid: string
+				}
+				response: TxEntry[]
+			}
 			fetchTokenBalances: {
 				params: {
 					address: string

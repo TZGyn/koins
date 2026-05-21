@@ -313,11 +313,11 @@ export const EvmWallet = () => {
 	}
 
 	const fetchTxHistory = async () => {
-		if (!address || !apiKey) {
+		if (!address) {
 			transactions = []
 			return
 		}
-		const txs = await electrobun.rpc?.request.fetchTxHistory({
+		const txs = await electrobun.rpc?.request.fetchCachedTxHistory({
 			address, chainid: net().chainid,
 		})
 		transactions = txs ?? []

@@ -64,6 +64,29 @@ export const getTransactionHistory = async (
 	return rows.map(toTransfer)
 }
 
+export const getCachedTransactionHistory = (
+	chainid: string,
+	address: string,
+) => {
+	const addrLower = address.toLowerCase()
+	const rows = db
+		.select()
+		.from(txHistory)
+		.where(
+			and(
+				eq(txHistory.chainId, chainid),
+				or(
+					eq(txHistory.from, addrLower),
+					eq(txHistory.to, addrLower),
+				),
+			),
+		)
+		.orderBy(desc(txHistory.blockNum))
+		.all()
+
+	return rows.map(toTransfer)
+}
+
 function toTransfer(row: typeof txHistory.$inferSelect): Transaction {
 	if (row.raw) {
 		return JSON.parse(row.raw) as Transaction

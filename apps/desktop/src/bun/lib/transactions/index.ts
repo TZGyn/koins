@@ -1,2 +1,2 @@
-export { getTransactionHistory } from './get-history'
+export { getTransactionHistory, getCachedTransactionHistory } from './get-history'
 export { getTransactionDetails } from './get-details'

@@ -14,6 +14,7 @@ import { tryCatch } from '@koins/utils'
 import {
 	getTransactionHistory,
 	getTransactionDetails,
+	getCachedTransactionHistory,
 } from './lib/transactions'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import { eq } from 'drizzle-orm'
@@ -171,6 +172,13 @@ type RPC = {
 				response: void
 			}
 			fetchTxHistory: {
+				params: {
+					address: string
+					chainid: string
+				}
+				response: TxEntry[]
+			}
+			fetchCachedTxHistory: {
 				params: {
 					address: string
 					chainid: string
@@ -560,6 +568,10 @@ const rpc = BrowserView.defineRPC<RPC>({
 				)
 
 				return combined
+			},
+			fetchCachedTxHistory: async ({ address, chainid }) => {
+				const transfers = getCachedTransactionHistory(chainid, address)
+				return transfers.map(mapTransfer)
 			},
 			fetchTokenBalances: async ({ address, chainid }) => {
 				const key = await Bun.secrets.get({
