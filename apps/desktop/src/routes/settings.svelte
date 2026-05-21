@@ -17,6 +17,7 @@
 	let confirm = $state(false)
 	let resetting = $state(false)
 	let deletingWalletId = $state<string | null>(null)
+	let flushing = $state(false)
 
 	async function handleReset() {
 		resetting = true
@@ -30,6 +31,12 @@
 		await w.deleteWallet(id)
 		deletingWalletId = null
 		if (w.wallets.length === 0) navigate('/multicoin')
+	}
+
+	async function handleFlushCache() {
+		flushing = true
+		await w.flushTxCache()
+		flushing = false
 	}
 </script>
 
@@ -84,6 +91,17 @@
 				<CardDescription>App preferences and data management</CardDescription>
 			</CardHeader>
 			<CardContent class="space-y-4">
+				<div>
+					<p class="font-medium text-xs">Transaction Cache</p>
+					<p class="text-muted-foreground text-xs mt-1">
+						Clears all cached transaction history and sync status. Data will be re-fetched from Alchemy on next refresh.
+					</p>
+					<div class="mt-3">
+						<Button variant="outline" onclick={handleFlushCache} disabled={flushing}>
+							{flushing ? 'Flushing...' : 'Flush Transaction Cache'}
+						</Button>
+					</div>
+				</div>
 				<div>
 					<p class="font-medium text-xs">Reset App</p>
 					<p class="text-muted-foreground text-xs mt-1">

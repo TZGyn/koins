@@ -145,6 +145,10 @@ type RPC = {
 				params: { address: string; chainid: string }
 				response: void
 			}
+			flushTxCache: {
+				params: {}
+				response: void
+			}
 			fetchTokenBalances: {
 				params: {
 					address: string

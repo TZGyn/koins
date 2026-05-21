@@ -68,8 +68,9 @@ export const getTransactionHistory = async (
 			let lastTimestamp = ''
 			for (const t of transfers) {
 				if (!t.hash) continue
-				if (seen.has(t.hash)) continue
-				seen.add(t.hash)
+				const dedupKey = `${t.hash}_${t.category}_${t.rawContract?.address ?? ''}`
+				if (seen.has(dedupKey)) continue
+				seen.add(dedupKey)
 				all.push(t)
 
 				if (t.blockNum) {
@@ -87,7 +88,7 @@ export const getTransactionHistory = async (
 			console.log(
 				`[alchemy] ${direction} page ${page + 1}: ${transfers.length} transfers, ` +
 				`block ${pageMaxBlock}, ` +
-				`${new Date(firstTimestamp).toISOString()} → ${new Date(lastTimestamp).toISOString()}`,
+				`${firstTimestamp ? new Date(firstTimestamp).toISOString() : '?'} → ${lastTimestamp ? new Date(lastTimestamp).toISOString() : '?'}`,
 			)
 
 			if (pageMaxBlock === 0) break

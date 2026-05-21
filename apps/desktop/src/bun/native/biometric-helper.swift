@@ -3,7 +3,7 @@ import LocalAuthentication
 
 let context = LAContext()
 var error: NSError?
-let available = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+let available = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
 
 let isCheck = CommandLine.arguments.contains("--check")
 if isCheck {
@@ -19,7 +19,7 @@ guard available else {
 let reason = CommandLine.arguments.last ?? "Authenticate"
 let sem = DispatchSemaphore(value: 0)
 
-context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, authError in
+context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, authError in
     if success {
         exit(0)
     }

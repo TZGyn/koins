@@ -1,7 +1,6 @@
 import { eq, and, or, desc } from 'drizzle-orm'
 import { db } from '../db'
 import { txHistory } from '../db/schema'
-import { getTransactionHistory as fetchFromAlchemy } from '../alchemy/get-transaction-history'
 import type { Transaction } from '../alchemy/types'
 
 export const getTransactionHistory = async (
@@ -10,58 +9,7 @@ export const getTransactionHistory = async (
 	address: string,
 	opts: { maxCount: number },
 ) => {
-	const result = await fetchFromAlchemy(key, chainid, address, opts)
-
-	if (result) {
-		for (const t of result) {
-			if (!t.hash) continue
-			const existing = await db.query.txHistory.findFirst({
-				where: {
-					hash: t.hash,
-					chainId: chainid,
-				},
-			})
-
-			if (!existing) {
-				await db.insert(txHistory).values({
-					chainId: chainid,
-					hash: t.hash,
-					blockNum: t.blockNum
-						? String(parseInt(t.blockNum, 16))
-						: null,
-					from: t.from?.toLowerCase() ?? null,
-					to: t.to?.toLowerCase() ?? null,
-					value: t.value?.toString() ?? null,
-					asset: t.asset ?? null,
-					category: t.category ?? null,
-					rawContractAddress:
-						t.rawContract?.address?.toLowerCase() ?? null,
-					rawContractDecimal: t.rawContract?.decimal ?? null,
-					metadataBlockTimestamp: t.metadata?.blockTimestamp ?? null,
-					raw: JSON.stringify(t),
-					syncedAt: new Date().toISOString(),
-				})
-			}
-		}
-	}
-
-	const addrLower = address.toLowerCase()
-	const rows = db
-		.select()
-		.from(txHistory)
-		.where(
-			and(
-				eq(txHistory.chainId, chainid),
-				or(
-					eq(txHistory.from, addrLower),
-					eq(txHistory.to, addrLower),
-				),
-			),
-		)
-		.orderBy(desc(txHistory.blockNum))
-		.all()
-
-	return rows.map(toTransfer)
+	return getCachedTransactionHistory(chainid, address)
 }
 
 export const getCachedTransactionHistory = (

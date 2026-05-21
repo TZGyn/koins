@@ -1,6 +1,10 @@
 import { mnemonicToAccount } from 'viem/accounts'
 import { createPublicClient, http, formatEther } from 'viem'
-import { electrobun, type TxEntry, type EvmWalletInfo } from '$lib/electrobun'
+import {
+	electrobun,
+	type TxEntry,
+	type EvmWalletInfo,
+} from '$lib/electrobun'
 import { tryCatch } from '@koins/utils'
 import { moneroWallet } from './monero-wallet.svelte.js'
 
@@ -55,6 +59,7 @@ export const EvmWallet = () => {
 	let transactions = $state<TxEntry[]>([])
 	let loadingBalance = $state(false)
 	let loadingTransactions = $state(false)
+	let loading = $state(false)
 	let error = $state('')
 	let wallets = $state<EvmWalletInfo[]>([])
 	let currentWalletId = $state<string | null>(null)
@@ -62,12 +67,36 @@ export const EvmWallet = () => {
 
 	const net = () => networks.find((n) => n.id === network)!
 
-	async function hashPassword(password: string, salt?: string): Promise<{ salt: string; hash: string }> {
-		const s = salt ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('')
+	async function hashPassword(
+		password: string,
+		salt?: string,
+	): Promise<{ salt: string; hash: string }> {
+		const s =
+			salt ??
+			Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+				b.toString(16).padStart(2, '0'),
+			).join('')
 		const enc = new TextEncoder()
-		const key = await crypto.subtle.importKey('raw', enc.encode(password + s), 'PBKDF2', false, ['deriveBits'])
-		const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(s), iterations: 100_000, hash: 'SHA-256' }, key, 256)
-		const hash = Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, '0')).join('')
+		const key = await crypto.subtle.importKey(
+			'raw',
+			enc.encode(password + s),
+			'PBKDF2',
+			false,
+			['deriveBits'],
+		)
+		const bits = await crypto.subtle.deriveBits(
+			{
+				name: 'PBKDF2',
+				salt: enc.encode(s),
+				iterations: 100_000,
+				hash: 'SHA-256',
+			},
+			key,
+			256,
+		)
+		const hash = Array.from(new Uint8Array(bits), (b) =>
+			b.toString(16).padStart(2, '0'),
+		).join('')
 		return { salt: s, hash }
 	}
 
@@ -93,15 +122,19 @@ export const EvmWallet = () => {
 		}
 
 		const [key] = await tryCatch(
-			electrobun.rpc.request.getSecret({ service: 'koins', name: 'alchemy_key' }),
+			electrobun.rpc.request.getSecret({
+				service: 'koins',
+				name: 'alchemy_key',
+			}),
 		)
 		if (key) apiKey = key
 
-		await moneroWallet.checkStatus()
-		if (moneroWallet.installed && !moneroWallet.running && !moneroWallet.downloading) {
-			await moneroWallet.start()
-			await moneroWallet.checkStatus()
-		}
+		// await moneroWallet.checkStatus()
+		// if (moneroWallet.installed && !moneroWallet.running && !moneroWallet.downloading) {
+		// 	await moneroWallet.start()
+		// 	await moneroWallet.checkStatus()
+		// }
+
 		await checkBiometric()
 		ready = true
 	}
@@ -141,7 +174,9 @@ export const EvmWallet = () => {
 		if (!wallet) return false
 		currentWalletId = walletId
 		const [vaultSeed] = await tryCatch(
-			electrobun.rpc.request.evmGetSeed({ vaultKey: wallet.vaultKey }),
+			electrobun.rpc.request.evmGetSeed({
+				vaultKey: wallet.vaultKey,
+			}),
 		)
 		if (!vaultSeed) return false
 		seed = vaultSeed
@@ -152,7 +187,9 @@ export const EvmWallet = () => {
 	const unlockWithBiometrics = async () => {
 		if (!electrobun.rpc) return false
 		const [authed] = await tryCatch(
-			electrobun.rpc.request.biometricAuth({ reason: 'Unlock wallet' }),
+			electrobun.rpc.request.biometricAuth({
+				reason: 'Unlock wallet',
+			}),
 		)
 		if (!authed) return false
 		if (!currentWalletId) return false
@@ -177,7 +214,9 @@ export const EvmWallet = () => {
 		const wallet = wallets.find((w) => w.id === walletId)
 		if (!wallet) return false
 		const [vaultSeed] = await tryCatch(
-			electrobun.rpc.request.evmGetSeed({ vaultKey: wallet.vaultKey }),
+			electrobun.rpc.request.evmGetSeed({
+				vaultKey: wallet.vaultKey,
+			}),
 		)
 		if (!vaultSeed) return false
 		seed = vaultSeed
@@ -213,7 +252,11 @@ export const EvmWallet = () => {
 		return false
 	}
 
-	const createWallet = async (name: string, phrase: string, password?: string) => {
+	const createWallet = async (
+		name: string,
+		phrase: string,
+		password?: string,
+	) => {
 		loading = true
 		error = ''
 		try {
@@ -288,7 +331,6 @@ export const EvmWallet = () => {
 		const client = createPublicClient({ transport: http(net().rpc) })
 
 		syncTxHistory()
-
 		;(async () => {
 			const [nativeBal] = await tryCatch(
 				client.getBalance({ address: account.address }),
@@ -296,13 +338,13 @@ export const EvmWallet = () => {
 			if (nativeBal) balance = formatEther(nativeBal)
 			const [bals] = await tryCatch(
 				electrobun.rpc.request.fetchTokenBalances({
-					address, chainid: net().chainid,
+					address,
+					chainid: net().chainid,
 				}),
 			)
 			if (bals) tokenBalances = bals
 			loadingBalance = false
 		})()
-
 		;(async () => {
 			await fetchTxHistory()
 			loadingTransactions = false
@@ -311,12 +353,22 @@ export const EvmWallet = () => {
 
 	const syncTxHistory = () => {
 		if (!address || !apiKey || !electrobun.rpc) return
-		electrobun.rpc.request.syncTxHistory({ address, chainid: net().chainid })
+		electrobun.rpc.request.syncTxHistory({
+			address,
+			chainid: net().chainid,
+		})
+	}
+
+	const flushTxCache = async () => {
+		await electrobun.rpc?.request.flushTxCache({})
+		await fetchTxHistory()
 	}
 
 	const saveApiKey = async (key: string) => {
 		await electrobun.rpc?.request.setSecret({
-			service: 'koins', name: 'alchemy_key', value: key,
+			service: 'koins',
+			name: 'alchemy_key',
+			value: key,
 		})
 		apiKey = key
 		syncTxHistory()
@@ -329,7 +381,8 @@ export const EvmWallet = () => {
 			return
 		}
 		const txs = await electrobun.rpc?.request.fetchCachedTxHistory({
-			address, chainid: net().chainid,
+			address,
+			chainid: net().chainid,
 		})
 		transactions = txs ?? []
 	}
@@ -354,34 +407,92 @@ export const EvmWallet = () => {
 	}
 
 	return {
-		get accountType() { return accountType },
-		get ready() { return ready },
-		get biometricAvailable() { return biometricAvailable },
-		get seed() { return seed },
-		get address() { return address },
-		get balance() { return balance },
-		get tokenBalances() { return tokenBalances },
-		get network() { return network },
-		get chainid() { return net().chainid },
-		get networkName() { return net().name },
-		get symbol() { return net().symbol },
-		get explorerUrl() { return net().explorerUrl },
-		get explorerAddressUrl() { return address ? `${net().explorerUrl.replace('/tx/', '/address/')}${address}` : '' },
-		get networks() { return networks },
-		get apiKey() { return apiKey },
-		get transactions() { return transactions },
-		get loading() { return loadingBalance || loadingTransactions },
-		get loadingBalance() { return loadingBalance },
-		get loadingTransactions() { return loadingTransactions },
-		get error() { return error },
-		get wallets() { return wallets },
-		get currentWalletId() { return currentWalletId },
-		get currentWallet() { return wallets.find((w) => w.id === currentWalletId) ?? null },
-		get isLocked() { return !!currentWalletId && !seed },
-		get hasWallets() { return wallets.length > 0 },
-		get currentPasswordHash() { return currentPasswordHash },
-		set apiKey(v: string) { apiKey = v },
-		set error(v: string) { error = v },
+		get accountType() {
+			return accountType
+		},
+		get ready() {
+			return ready
+		},
+		get biometricAvailable() {
+			return biometricAvailable
+		},
+		get seed() {
+			return seed
+		},
+		get address() {
+			return address
+		},
+		get balance() {
+			return balance
+		},
+		get tokenBalances() {
+			return tokenBalances
+		},
+		get network() {
+			return network
+		},
+		get chainid() {
+			return net().chainid
+		},
+		get networkName() {
+			return net().name
+		},
+		get symbol() {
+			return net().symbol
+		},
+		get explorerUrl() {
+			return net().explorerUrl
+		},
+		get explorerAddressUrl() {
+			return address
+				? `${net().explorerUrl.replace('/tx/', '/address/')}${address}`
+				: ''
+		},
+		get networks() {
+			return networks
+		},
+		get apiKey() {
+			return apiKey
+		},
+		get transactions() {
+			return transactions
+		},
+		get loading() {
+			return loading || loadingBalance || loadingTransactions
+		},
+		get loadingBalance() {
+			return loadingBalance
+		},
+		get loadingTransactions() {
+			return loadingTransactions
+		},
+		get error() {
+			return error
+		},
+		get wallets() {
+			return wallets
+		},
+		get currentWalletId() {
+			return currentWalletId
+		},
+		get currentWallet() {
+			return wallets.find((w) => w.id === currentWalletId) ?? null
+		},
+		get isLocked() {
+			return !!currentWalletId && !seed
+		},
+		get hasWallets() {
+			return wallets.length > 0
+		},
+		get currentPasswordHash() {
+			return currentPasswordHash
+		},
+		set apiKey(v: string) {
+			apiKey = v
+		},
+		set error(v: string) {
+			error = v
+		},
 		init,
 		login,
 		logout,
@@ -401,6 +512,7 @@ export const EvmWallet = () => {
 		deleteWallet,
 		clearSelection,
 		syncTxHistory,
+		flushTxCache,
 	}
 }
 

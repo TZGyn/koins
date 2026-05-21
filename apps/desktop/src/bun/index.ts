@@ -190,6 +190,10 @@ type RPC = {
 				params: { address: string; chainid: string }
 				response: void
 			}
+			flushTxCache: {
+				params: {}
+				response: void
+			}
 			fetchTokenBalances: {
 				params: {
 					address: string
@@ -281,12 +285,22 @@ type RPC = {
 				}
 			}
 			evmCreateWallet: {
-				params: { name: string; phrase: string; passwordHash?: string }
+				params: {
+					name: string
+					phrase: string
+					passwordHash?: string
+				}
 				response: { id: string; name: string; createdAt: string }
 			}
 			evmListWallets: {
 				params: {}
-				response: Array<{ id: string; name: string; hasPassword: boolean; vaultKey: string; createdAt: string }>
+				response: Array<{
+					id: string
+					name: string
+					hasPassword: boolean
+					vaultKey: string
+					createdAt: string
+				}>
 			}
 			evmGetSeed: {
 				params: { vaultKey: string }
@@ -412,10 +426,19 @@ const rpc = BrowserView.defineRPC<RPC>({
 				try {
 					const wallets = db.select().from(evmWallets).all()
 					await Promise.all([
-						Bun.secrets.delete({ service: 'koins', name: 'alchemy_key' }),
+						Bun.secrets.delete({
+							service: 'koins',
+							name: 'alchemy_key',
+						}),
 						...wallets.flatMap((w) => [
-							Bun.secrets.delete({ service: 'koins', name: w.vaultKey }),
-							Bun.secrets.delete({ service: 'koins', name: `evm_auth_${w.id}` }),
+							Bun.secrets.delete({
+								service: 'koins',
+								name: w.vaultKey,
+							}),
+							Bun.secrets.delete({
+								service: 'koins',
+								name: `evm_auth_${w.id}`,
+							}),
 						]),
 					])
 					sqlite.run('DELETE FROM token_metadata')
@@ -431,8 +454,11 @@ const rpc = BrowserView.defineRPC<RPC>({
 				}
 			},
 			biometricCanAuth: async () => {
+				console.log('[biometric] checking biometric...')
 				try {
-					return canPromptTouchID()
+					const canPrompt = canPromptTouchID()
+					console.log('[biometric] biometric ===', canPrompt)
+					return canPrompt
 				} catch {
 					return false
 				}
@@ -575,15 +601,26 @@ const rpc = BrowserView.defineRPC<RPC>({
 				return combined
 			},
 			fetchCachedTxHistory: async ({ address, chainid }) => {
-				const transfers = getCachedTransactionHistory(chainid, address)
+				const transfers = await getCachedTransactionHistory(
+					chainid,
+					address,
+				)
 				return transfers.map(mapTransfer)
 			},
 			syncTxHistory: async ({ address, chainid }) => {
-				const key = await Bun.secrets.get({ service: 'koins', name: 'alchemy_key' })
+				const key = await Bun.secrets.get({
+					service: 'koins',
+					name: 'alchemy_key',
+				})
 				if (!key) return
 				syncTransactionHistory(key, chainid, address).catch((e) =>
 					console.error('[sync] error:', e),
 				)
+			},
+			flushTxCache: async () => {
+				sqlite.run('DELETE FROM tx_history')
+				sqlite.run('DELETE FROM tx_sync_status')
+				console.log('[rpc] flushTxCache complete')
 			},
 			fetchTokenBalances: async ({ address, chainid }) => {
 				const key = await Bun.secrets.get({
@@ -799,7 +836,11 @@ const rpc = BrowserView.defineRPC<RPC>({
 				console.log('[rpc] evmCreateWallet:', name)
 				const id = crypto.randomUUID()
 				const vaultKey = `evm_seed_${id}`
-				await Bun.secrets.set({ service: 'koins', name: vaultKey, value: phrase })
+				await Bun.secrets.set({
+					service: 'koins',
+					name: vaultKey,
+					value: phrase,
+				})
 				await db.insert(evmWallets).values({
 					id,
 					name,
@@ -823,17 +864,30 @@ const rpc = BrowserView.defineRPC<RPC>({
 			},
 			evmGetSeed: async ({ vaultKey }) => {
 				console.log('[rpc] evmGetSeed:', vaultKey)
-				const seed = await Bun.secrets.get({ service: 'koins', name: vaultKey })
+				const seed = await Bun.secrets.get({
+					service: 'koins',
+					name: vaultKey,
+				})
 				if (!seed) throw new Error('Seed not found in keychain')
 				return seed
 			},
 			evmDeleteWallet: async ({ id }) => {
 				console.log('[rpc] evmDeleteWallet:', id)
-				const wallet = db.select().from(evmWallets).where(eq(evmWallets.id, id)).get()
+				const wallet = db
+					.select()
+					.from(evmWallets)
+					.where(eq(evmWallets.id, id))
+					.get()
 				if (!wallet) throw new Error('Wallet not found')
 				await Promise.all([
-					Bun.secrets.delete({ service: 'koins', name: wallet.vaultKey }),
-					Bun.secrets.delete({ service: 'koins', name: `evm_auth_${id}` }),
+					Bun.secrets.delete({
+						service: 'koins',
+						name: wallet.vaultKey,
+					}),
+					Bun.secrets.delete({
+						service: 'koins',
+						name: `evm_auth_${id}`,
+					}),
 				])
 				db.delete(evmWallets).where(eq(evmWallets.id, id)).run()
 				console.log('[rpc] evmDeleteWallet complete')
