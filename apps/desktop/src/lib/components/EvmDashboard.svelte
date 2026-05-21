@@ -332,7 +332,12 @@
 					</div>
 				{/if}
 
-				{#if w.error}
+		{#if w.loadingBalance && w.address}
+			<div class="flex justify-center py-4">
+				<Loader />
+			</div>
+		{/if}
+		{#if w.error}
 					<p class="mb-3 text-red-500">{w.error}</p>
 				{/if}
 
@@ -371,7 +376,7 @@
 				<CardTitle>Transactions</CardTitle>
 			</CardHeader>
 			<CardContent>
-				{#if w.loading}
+				{#if w.loadingTransactions}
 					<div class="flex justify-center py-4">
 						<Loader />
 					</div>

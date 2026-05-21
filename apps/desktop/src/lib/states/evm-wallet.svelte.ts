@@ -53,7 +53,8 @@ export const EvmWallet = () => {
 	let network = $state<NetworkId>('eth')
 	let apiKey = $state('')
 	let transactions = $state<TxEntry[]>([])
-	let loading = $state(false)
+	let loadingBalance = $state(false)
+	let loadingTransactions = $state(false)
 	let error = $state('')
 	let wallets = $state<EvmWalletInfo[]>([])
 	let currentWalletId = $state<string | null>(null)
@@ -279,29 +280,31 @@ export const EvmWallet = () => {
 
 	const refresh = async () => {
 		if (!seed || !electrobun.rpc) return
-		loading = true
+		loadingBalance = true
+		loadingTransactions = true
 		error = ''
-		tokenBalances = []
 		const account = mnemonicToAccount(seed)
 		address = account.address
 		const client = createPublicClient({ transport: http(net().rpc) })
-		const [nativeBal, nativeBalError] = await tryCatch(
-			client.getBalance({ address: account.address }),
-		)
-		if (nativeBalError) {
-			loading = false
-			return
-		}
-		balance = formatEther(nativeBal)
-		const [bals, balsError] = await tryCatch(
-			electrobun.rpc.request.fetchTokenBalances({
-				address, chainid: net().chainid,
-			}),
-		)
-		if (balsError) error = balsError.message
-		tokenBalances = bals ?? []
-		await fetchTxHistory()
-		loading = false
+
+		;(async () => {
+			const [nativeBal] = await tryCatch(
+				client.getBalance({ address: account.address }),
+			)
+			if (nativeBal) balance = formatEther(nativeBal)
+			const [bals] = await tryCatch(
+				electrobun.rpc.request.fetchTokenBalances({
+					address, chainid: net().chainid,
+				}),
+			)
+			if (bals) tokenBalances = bals
+			loadingBalance = false
+		})()
+
+		;(async () => {
+			await fetchTxHistory()
+			loadingTransactions = false
+		})()
 	}
 
 	const saveApiKey = async (key: string) => {
@@ -358,7 +361,9 @@ export const EvmWallet = () => {
 		get networks() { return networks },
 		get apiKey() { return apiKey },
 		get transactions() { return transactions },
-		get loading() { return loading },
+		get loading() { return loadingBalance || loadingTransactions },
+		get loadingBalance() { return loadingBalance },
+		get loadingTransactions() { return loadingTransactions },
 		get error() { return error },
 		get wallets() { return wallets },
 		get currentWalletId() { return currentWalletId },
