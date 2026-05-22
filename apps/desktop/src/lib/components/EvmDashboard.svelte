@@ -367,12 +367,6 @@
 				{/if}
 
 				<div class="flex gap-2 flex-wrap">
-					<Button onclick={() => w.refresh()} disabled={w.loading}>
-						{#if w.loading}
-							<Loader />
-						{/if}
-						Refresh
-					</Button>
 					<Button
 						variant="outline"
 						onclick={() => navigate('/settings')}>

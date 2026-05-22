@@ -98,7 +98,7 @@ export type EvmWalletInfo = {
 }
 
 type RPC = {
-	bun: {
+		bun: {
 		requests: {
 			resetApp: {
 				params: {}
@@ -147,6 +147,10 @@ type RPC = {
 			}
 			flushTxCache: {
 				params: {}
+				response: void
+			}
+			setAutoSync: {
+				params: { address: string; chainid: string } | null
 				response: void
 			}
 			fetchTokenBalances: {
@@ -260,7 +264,13 @@ type RPC = {
 	}
 	webview: {
 		requests: {}
-		messages: {}
+		messages: {
+			transfersUpdate: {
+				count: number
+				chainid: string
+				address: string
+			}
+		}
 	}
 }
 

@@ -195,6 +195,10 @@ type RPC = {
 				params: {}
 				response: void
 			}
+			setAutoSync: {
+				params: { address: string; chainid: string } | null
+				response: void
+			}
 			fetchTokenBalances: {
 				params: {
 					address: string
@@ -316,7 +320,13 @@ type RPC = {
 	}>
 	webview: RPCSchema<{
 		requests: {}
-		messages: {}
+		messages: {
+			transfersUpdate: {
+				count: number
+				chainid: string
+				address: string
+			}
+		}
 	}>
 }
 
@@ -418,6 +428,9 @@ function mapTransfer(t: any): TxEntry {
 
 let moneroManager: MoneroWalletManager | null = null
 let moneroDownloading = false
+
+let autoSyncTarget: { address: string; chainid: string } | null = null
+let autoSyncTimer: ReturnType<typeof setInterval> | null = null
 
 const rpc = BrowserView.defineRPC<RPC>({
 	maxRequestTime: 120000,
@@ -614,9 +627,45 @@ const rpc = BrowserView.defineRPC<RPC>({
 					name: 'alchemy_key',
 				})
 				if (!key) return
-				syncTransactionHistory(key, chainid, address).catch((e) =>
-					console.error('[sync] error:', e),
-				)
+				try {
+					const count = await syncTransactionHistory(
+						key,
+						chainid,
+						address,
+					)
+					rpc.send.transfersUpdate({ count, chainid, address })
+				} catch (e) {
+					console.error('[sync] error:', e)
+				}
+			},
+			setAutoSync: async (target) => {
+				if (autoSyncTimer) clearInterval(autoSyncTimer)
+				autoSyncTimer = null
+				autoSyncTarget = null
+				if (!target) return
+				autoSyncTarget = target
+				autoSyncTimer = setInterval(async () => {
+					if (!autoSyncTarget) return
+					const key = await Bun.secrets.get({
+						service: 'koins',
+						name: 'alchemy_key',
+					})
+					if (!key) return
+					try {
+						const count = await syncTransactionHistory(
+							key,
+							autoSyncTarget.chainid,
+							autoSyncTarget.address,
+						)
+						rpc.send.transfersUpdate({
+							count,
+							chainid: autoSyncTarget.chainid,
+							address: autoSyncTarget.address,
+						})
+					} catch (e) {
+						console.error('[auto-sync] error:', e)
+					}
+				}, 30000)
 			},
 			flushTxCache: async () => {
 				sqlite.run('DELETE FROM tx_history')

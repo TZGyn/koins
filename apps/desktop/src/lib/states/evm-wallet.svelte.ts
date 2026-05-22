@@ -111,6 +111,18 @@ export const EvmWallet = () => {
 	const init = async () => {
 		if (!electrobun.rpc) return
 
+		electrobun.rpc.addMessageListener(
+			'transfersUpdate',
+			(payload: { chainid: string; address: string; count: number }) => {
+				if (
+					payload.address === address &&
+					payload.chainid === net().chainid
+				) {
+					fetchTxHistory()
+				}
+			},
+		)
+
 		const [walletList] = await tryCatch(
 			electrobun.rpc.request.evmListWallets({}),
 		)
@@ -166,6 +178,7 @@ export const EvmWallet = () => {
 		transactions = []
 		error = ''
 		currentPasswordHash = null
+		electrobun.rpc?.request.setAutoSync(null)
 	}
 
 	const unlockWallet = async (walletId: string) => {
@@ -181,6 +194,7 @@ export const EvmWallet = () => {
 		if (!vaultSeed) return false
 		seed = vaultSeed
 		await refresh()
+		await setAutoSync()
 		return true
 	}
 
@@ -221,6 +235,7 @@ export const EvmWallet = () => {
 		if (!vaultSeed) return false
 		seed = vaultSeed
 		await refresh()
+		await setAutoSync()
 		return true
 	}
 
@@ -355,6 +370,14 @@ export const EvmWallet = () => {
 	const syncTxHistory = () => {
 		if (!address || !apiKey || !electrobun.rpc) return
 		electrobun.rpc.request.syncTxHistory({
+			address,
+			chainid: net().chainid,
+		})
+	}
+
+	const setAutoSync = async () => {
+		if (!address || !electrobun.rpc) return
+		electrobun.rpc.request.setAutoSync({
 			address,
 			chainid: net().chainid,
 		})
@@ -513,6 +536,7 @@ export const EvmWallet = () => {
 		deleteWallet,
 		clearSelection,
 		syncTxHistory,
+		setAutoSync,
 		flushTxCache,
 	}
 }

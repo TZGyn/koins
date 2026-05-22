@@ -11,7 +11,7 @@ export const syncTransactionHistory = async (
 	key: string,
 	chainid: string,
 	address: string,
-) => {
+): Promise<number> => {
 	const addrLower = address.toLowerCase()
 
 	const existing = db
@@ -39,7 +39,7 @@ export const syncTransactionHistory = async (
 		},
 	)
 
-	if (!transfers || transfers.length === 0) return
+	if (!transfers || transfers.length === 0) return 0
 
 	const prepared: Array<typeof txHistory.$inferInsert> = []
 	let latestBlock = Number(existing?.lastSyncBlock ?? '0')
@@ -91,6 +91,8 @@ export const syncTransactionHistory = async (
 	console.log(
 		`[sync] ${chainid}/${addrLower}: synced ${prepared.length} transfers up to block ${latestBlock}`,
 	)
+
+	return prepared.length
 }
 
 function flush(prepared: Array<typeof txHistory.$inferInsert>) {
