@@ -325,6 +325,7 @@ export const EvmWallet = () => {
 		if (!seed || !electrobun.rpc) return
 		loadingBalance = true
 		loadingTransactions = true
+		balance = '0'
 		error = ''
 		const account = mnemonicToAccount(seed)
 		address = account.address
@@ -335,7 +336,7 @@ export const EvmWallet = () => {
 			const [nativeBal] = await tryCatch(
 				client.getBalance({ address: account.address }),
 			)
-			if (nativeBal) balance = formatEther(nativeBal)
+			if (nativeBal !== undefined) balance = formatEther(nativeBal)
 			const [bals] = await tryCatch(
 				electrobun.rpc.request.fetchTokenBalances({
 					address,

@@ -378,10 +378,6 @@
 						onclick={() => navigate('/settings')}>
 						<SettingsIcon size={16} />
 					</Button>
-					<Button variant="outline" onclick={() => w.lock()}>
-						<LockKeyhole size={16} />
-						Lock
-					</Button>
 					<Button
 						variant="outline"
 						onclick={async () => {
