@@ -43,7 +43,7 @@
 <div class="mx-auto mt-16 max-w-md">
 	<div class="flex flex-col gap-4">
 		<div class="flex items-center gap-2">
-			<Button variant="outline" size="sm" onclick={() => navigate('/multicoin')}>
+			<Button variant="outline" size="sm" onclick={() => navigate(w.network === 'eth' ? '/multicoin' : `/multicoin/${w.network}`)}>
 				<ArrowLeft size={16} />
 				Back
 			</Button>
