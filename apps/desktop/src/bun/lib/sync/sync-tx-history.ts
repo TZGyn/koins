@@ -3,6 +3,7 @@ import { numberToHex } from 'viem'
 import { db } from '../db'
 import { txHistory, txSyncStatus } from '../db/schema'
 import { getTransactionHistory } from '../alchemy/get-transaction-history'
+import { syncTxDetails } from './sync-tx-details'
 
 const PAGE_SIZE = 76
 
@@ -28,10 +29,15 @@ export const syncTransactionHistory = async (
 		? numberToHex(Number(existing.lastSyncBlock) + 1)
 		: undefined
 
-	const transfers = await getTransactionHistory(key, chainid, address, {
-		maxCount: 1000,
-		fromBlock,
-	})
+	const transfers = await getTransactionHistory(
+		key,
+		chainid,
+		address,
+		{
+			maxCount: 1000,
+			fromBlock,
+		},
+	)
 
 	if (!transfers || transfers.length === 0) return
 
@@ -54,12 +60,15 @@ export const syncTransactionHistory = async (
 			value: t.value?.toString() ?? null,
 			asset: t.asset ?? null,
 			category: t.category ?? null,
-			rawContractAddress: t.rawContract?.address?.toLowerCase() ?? null,
+			rawContractAddress:
+				t.rawContract?.address?.toLowerCase() ?? null,
 			rawContractDecimal: t.rawContract?.decimal ?? null,
 			metadataBlockTimestamp: t.metadata?.blockTimestamp ?? null,
 			raw: JSON.stringify(t),
 			syncedAt: new Date().toISOString(),
 		})
+
+		await syncTxDetails(chainid, key, t.hash)
 	}
 
 	flush(prepared)
@@ -87,10 +96,42 @@ export const syncTransactionHistory = async (
 function flush(prepared: Array<typeof txHistory.$inferInsert>) {
 	while (prepared.length > 0) {
 		const batch = prepared.splice(0, PAGE_SIZE)
-		const cols = ['chainId', 'hash', 'blockNum', '"from"', '"to"', 'value', 'asset', 'category', 'rawContractAddress', 'rawContractDecimal', 'metadataBlockTimestamp', 'raw', 'syncedAt']
-		const colKeys = ['chainId', 'hash', 'blockNum', 'from', 'to', 'value', 'asset', 'category', 'rawContractAddress', 'rawContractDecimal', 'metadataBlockTimestamp', 'raw', 'syncedAt']
-		const placeholders = batch.map(() => `(${colKeys.map(() => '?').join(',')})`).join(',')
-		const flat = batch.flatMap((r) => colKeys.map((c) => (r as any)[c] ?? null))
+		const cols = [
+			'chainId',
+			'hash',
+			'blockNum',
+			'"from"',
+			'"to"',
+			'value',
+			'asset',
+			'category',
+			'rawContractAddress',
+			'rawContractDecimal',
+			'metadataBlockTimestamp',
+			'raw',
+			'syncedAt',
+		]
+		const colKeys = [
+			'chainId',
+			'hash',
+			'blockNum',
+			'from',
+			'to',
+			'value',
+			'asset',
+			'category',
+			'rawContractAddress',
+			'rawContractDecimal',
+			'metadataBlockTimestamp',
+			'raw',
+			'syncedAt',
+		]
+		const placeholders = batch
+			.map(() => `(${colKeys.map(() => '?').join(',')})`)
+			.join(',')
+		const flat = batch.flatMap((r) =>
+			colKeys.map((c) => (r as any)[c] ?? null),
+		)
 		const sql = `INSERT OR IGNORE INTO tx_history (${cols.join(',')}) VALUES ${placeholders}`
 
 		const dbClient = db.$client

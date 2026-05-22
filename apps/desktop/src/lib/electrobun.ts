@@ -236,7 +236,11 @@ type RPC = {
 				response: string[]
 			}
 			evmCreateWallet: {
-				params: { name: string; phrase: string; passwordHash?: string }
+				params: {
+					name: string
+					phrase: string
+					passwordHash?: string
+				}
 				response: { id: string; name: string; createdAt: string }
 			}
 			evmListWallets: {

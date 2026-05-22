@@ -39,6 +39,7 @@ import {
 	txHistory,
 	evmWallets,
 } from './lib/db/schema'
+import { syncTxDetails } from './lib/sync/sync-tx-details'
 
 const env = getENV()
 
@@ -647,12 +648,7 @@ const rpc = BrowserView.defineRPC<RPC>({
 				})
 				if (!key) return null
 				try {
-					const client = getClient(chainid, key)
-					const details = await getTransactionDetails(
-						client,
-						hash,
-						chainid,
-					)
+					const details = await getTransactionDetails(hash, chainid)
 					return details
 				} catch (error) {
 					console.log(error)
