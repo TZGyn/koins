@@ -110,7 +110,8 @@
 				{/if}
 			</CardTitle>
 			<CardDescription>
-				Name your wallet and enter your seed phrase to save it securely
+				Name your wallet and enter your seed phrase to save it
+				securely
 			</CardDescription>
 		</CardHeader>
 		<CardContent>
@@ -131,12 +132,20 @@
 				<div class="flex gap-2">
 					<Button
 						onclick={() =>
-							w.createWallet(inputWalletName, inputSeed, inputPassword || undefined)}
-						disabled={w.loading || !inputSeed.trim() || !inputWalletName.trim()}>
+							w.createWallet(
+								inputWalletName,
+								inputSeed,
+								inputPassword || undefined,
+							)}
+						disabled={w.loading ||
+							!inputSeed.trim() ||
+							!inputWalletName.trim()}>
 						{w.loading ? 'Saving...' : 'Save Wallet'}
 					</Button>
 					{#if showCreateForm}
-						<Button variant="outline" onclick={() => (showCreateForm = false)}>
+						<Button
+							variant="outline"
+							onclick={() => (showCreateForm = false)}>
 							Cancel
 						</Button>
 					{/if}
@@ -165,7 +174,9 @@
 							}
 						}}
 						class="flex w-full cursor-pointer items-center gap-3 rounded-md border border-input p-3 text-left hover:bg-muted transition-colors">
-						<WalletIcon size={20} class="shrink-0 text-muted-foreground" />
+						<WalletIcon
+							size={20}
+							class="shrink-0 text-muted-foreground" />
 						<div class="flex-1 min-w-0">
 							<p class="font-medium text-sm">{wal.name}</p>
 							<p class="text-xs text-muted-foreground">
@@ -174,12 +185,17 @@
 						</div>
 						<div class="flex items-center gap-1">
 							{#if wal.hasPassword}
-								<LockKeyhole size={14} class="text-muted-foreground" />
+								<LockKeyhole
+									size={14}
+									class="text-muted-foreground" />
 							{/if}
 						</div>
 					</button>
 				{/each}
-				<Button variant="outline" onclick={() => (showCreateForm = true)} class="mt-2">
+				<Button
+					variant="outline"
+					onclick={() => (showCreateForm = true)}
+					class="mt-2">
 					<Plus size={16} />
 					Add Wallet
 				</Button>
@@ -189,10 +205,10 @@
 {:else if w.isLocked}
 	<Card>
 		<CardHeader>
-			<CardTitle>{w.currentWallet?.name ?? 'Wallet'} Locked</CardTitle>
-			<CardDescription>
-				Unlock to access your wallet
-			</CardDescription>
+			<CardTitle>
+				{w.currentWallet?.name ?? 'Wallet'} Locked
+			</CardTitle>
+			<CardDescription>Unlock to access your wallet</CardDescription>
 		</CardHeader>
 		<CardContent>
 			<div class="flex flex-col gap-3">
@@ -269,7 +285,10 @@
 								{w.address}
 							</p>
 							<button
-								onclick={() => electrobun.rpc?.request.openExternal({ url: w.explorerAddressUrl })}
+								onclick={() =>
+									electrobun.rpc?.request.openExternal({
+										url: w.explorerAddressUrl,
+									})}
 								class="shrink-0 cursor-pointer rounded-md border p-1.5 text-muted-foreground hover:bg-muted transition-colors">
 								<ExternalLink size={16} />
 							</button>
@@ -338,12 +357,12 @@
 					</div>
 				{/if}
 
-		{#if w.loadingBalance && w.address}
-			<div class="flex justify-center py-4">
-				<Loader />
-			</div>
-		{/if}
-		{#if w.error}
+				{#if w.loadingBalance && w.address}
+					<div class="flex justify-center py-4">
+						<Loader />
+					</div>
+				{/if}
+				{#if w.error}
 					<p class="mb-3 text-red-500">{w.error}</p>
 				{/if}
 
@@ -359,9 +378,7 @@
 						onclick={() => navigate('/settings')}>
 						<SettingsIcon size={16} />
 					</Button>
-					<Button
-						variant="outline"
-						onclick={() => w.lock()}>
+					<Button variant="outline" onclick={() => w.lock()}>
 						<LockKeyhole size={16} />
 						Lock
 					</Button>
@@ -405,7 +422,7 @@
 					</p>
 				{:else}
 					<div class="max-h-96 space-y-1 overflow-y-auto">
-						{#each w.transactions as tx}
+						{#each w.transactions.filter((tx) => tx.tokenDecimal !== '0') as tx}
 							<button
 								onclick={() =>
 									navigate('/tx/:chainid/:hash', {
