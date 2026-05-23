@@ -226,17 +226,17 @@ async function pairTransfers(
 	const combined: TxEntry[] = []
 
 	for (const [, group] of byHash) {
-		const external = group.filter(
-			(t: any) => t.category === 'external',
+		const native = group.filter(
+			(t: any) => t.category === 'external' || t.category === 'internal',
 		)
 		const tokens = group.filter(
 			(t: any) => t.category === 'erc20',
 		)
 
-		const extOut = external.filter(
+		const extOut = native.filter(
 			(t: any) => t.from?.toLowerCase() === addrLower,
 		)
-		const extIn = external.filter(
+		const extIn = native.filter(
 			(t: any) => t.to?.toLowerCase() === addrLower,
 		)
 		const tokIn = tokens.filter(
