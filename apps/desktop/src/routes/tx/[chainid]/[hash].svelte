@@ -153,18 +153,18 @@
 						</div>
 					</div>
 				</div>
-				<div class="mt-4">
-					<Button
-						variant="outline"
-						size="sm"
-						class="w-full"
-						onclick={() =>
-							electrobun.rpc?.request.openExternal({
-								url: explorerUrl(),
-							})}>
-						View on Explorer
-					</Button>
-				</div>
+			<div class="mt-4">
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full"
+					onclick={() =>
+						electrobun.rpc?.request.openExternal({
+							url: explorerUrl(),
+						})}>
+					View on Explorer
+				</Button>
+			</div>
 			{:else}
 				<p class="text-muted-foreground text-xs">
 					No details available

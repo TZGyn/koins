@@ -16,6 +16,7 @@
 	} from '$lib/components/ui/card/index.js'
 	import ArrowDown from '@lucide/svelte/icons/arrow-down'
 	import ArrowUp from '@lucide/svelte/icons/arrow-up'
+	import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right'
 	import QrCodeIcon from '@lucide/svelte/icons/qr-code'
 	import SettingsIcon from '@lucide/svelte/icons/settings'
 	import Fingerprint from '@lucide/svelte/icons/fingerprint'
@@ -423,11 +424,15 @@
 									})}
 								class="flex w-full cursor-pointer items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs text-left hover:bg-muted/80 transition-colors">
 								<div
-									class="shrink-0 mt-0.5 {tx.from.toLowerCase() ===
-									w.address.toLowerCase()
-										? 'text-muted-foreground'
-										: 'text-green-500'}">
-									{#if tx.from.toLowerCase() === w.address.toLowerCase()}
+									class="shrink-0 mt-0.5 {txAction(tx, w.address) === 'Swap'
+										? 'text-yellow-500'
+										: tx.from.toLowerCase() ===
+										w.address.toLowerCase()
+											? 'text-muted-foreground'
+											: 'text-green-500'}">
+									{#if txAction(tx, w.address) === 'Swap'}
+										<ArrowLeftRight size={16} />
+									{:else if tx.from.toLowerCase() === w.address.toLowerCase()}
 										<ArrowUp size={16} />
 									{:else}
 										<ArrowDown size={16} />
