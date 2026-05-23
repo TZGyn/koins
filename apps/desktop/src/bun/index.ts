@@ -16,7 +16,7 @@ import {
 } from './lib/transactions'
 import { syncTransactionHistory } from './lib/sync'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { db } from './lib/db'
 import { join } from 'path'
 import { getENV } from './lib/get-env'
@@ -475,7 +475,7 @@ const rpc = BrowserView.defineRPC<RPC>({
 					return []
 				}
 			},
-			fetchTransactionDetails: async ({ hash, chainid }) => {
+			fetchTransactionDetails: async ({ hash, chainid, address }) => {
 				const key = await Bun.secrets.get({
 					service: 'koins',
 					name: 'alchemy_key',
@@ -483,6 +483,42 @@ const rpc = BrowserView.defineRPC<RPC>({
 				if (!key) return null
 				try {
 					const details = await getTransactionDetails(hash, chainid)
+					if (!details) return null
+
+					if (address) {
+						const transfers = db
+							.select()
+							.from(txHistory)
+							.where(
+								and(
+									eq(txHistory.chainId, chainid),
+									eq(txHistory.hash, hash.toLowerCase()),
+								),
+							)
+							.all()
+
+						if (transfers.length > 0) {
+							const paired = await pairTransfers(
+								transfers,
+								address,
+							)
+							if (
+								paired.length > 0 &&
+								paired[0].pairedValue
+							) {
+								details.pairedValue =
+									paired[0].pairedValue
+								details.pairedSymbol =
+									paired[0].pairedSymbol
+								details.pairedDecimals =
+									paired[0].pairedDecimals
+								details.pairedContractAddress =
+									paired[0].pairedContractAddress
+								details.pairedLogo = paired[0].pairedLogo
+							}
+						}
+					}
+
 					return details
 				} catch (error) {
 					console.log(error)

@@ -79,6 +79,11 @@ export type TransactionDetails = {
 	type: string
 	nonce: number
 	input: string
+	pairedValue?: string
+	pairedSymbol?: string
+	pairedDecimals?: string
+	pairedContractAddress?: string
+	pairedLogo?: string
 }
 
 export type TokenBalanceResult = {
@@ -110,7 +115,7 @@ export type RPC = {
 			flushTxCache: { params: {}; response: void }
 			setAutoSync: { params: { address: string; chainid: string } | null; response: void }
 			fetchTokenBalances: { params: { address: string; chainid: string }; response: TokenBalanceResult[] }
-			fetchTransactionDetails: { params: { hash: string; chainid: string }; response: TransactionDetails | null }
+			fetchTransactionDetails: { params: { hash: string; chainid: string; address?: string }; response: TransactionDetails | null }
 			openExternal: { params: { url: string }; response: void }
 			moneroBinaryStatus: { params: {}; response: MoneroBinaryStatus }
 			moneroDownloadBinary: { params: {}; response: void }

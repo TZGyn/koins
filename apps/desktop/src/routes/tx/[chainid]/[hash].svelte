@@ -3,6 +3,7 @@
 		electrobun,
 		type TransactionDetails,
 	} from '$lib/electrobun.js'
+	import { evmWallet } from '$lib/states/evm-wallet.svelte.js'
 	import { networks } from '$lib/states/evm-wallet.svelte.js'
 	import { navigate, route } from 'sv-router/generated'
 	import { Button } from '$lib/components/ui/button/index.js'
@@ -29,7 +30,11 @@
 		loading = true
 		error = ''
 		electrobun.rpc?.request
-			.fetchTransactionDetails({ hash, chainid })
+			.fetchTransactionDetails({
+				hash,
+				chainid,
+				address: evmWallet.address || undefined,
+			})
 			.then((res) => {
 				details = res
 				loading = false
@@ -108,6 +113,21 @@
 						</p>
 						<p>{details.value}</p>
 					</div>
+					{#if details.pairedValue}
+						<div
+							class="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-2">
+							<p class="mb-0.5 flex items-center gap-1 text-xs font-medium text-yellow-600">
+								Swap
+							</p>
+							<p class="font-mono text-xs">
+								{Number(details.value).toFixed(4)}
+								{network?.symbol ?? 'ETH'}
+								<span class="mx-1">→</span>
+								{Number(details.pairedValue).toFixed(4)}
+								{details.pairedSymbol}
+							</p>
+						</div>
+					{/if}
 					<div class="grid grid-cols-2 gap-2">
 						<div class="rounded-md bg-muted p-2">
 							<p class="text-muted-foreground mb-0.5">
