@@ -202,6 +202,118 @@ function mapTransfer(t: any): TxEntry {
 	}
 }
 
+async function pairTransfers(
+	transfers: any[],
+	address: string,
+	key?: string,
+	chainid?: string,
+): Promise<TxEntry[]> {
+	const addrLower = address.toLowerCase()
+	const byHash = new Map<string, any[]>()
+	for (const t of transfers) {
+		if (!t.hash) continue
+		const h = t.hash
+		if (!byHash.has(h)) byHash.set(h, [])
+		byHash.get(h)!.push(t)
+	}
+
+	const combined: TxEntry[] = []
+
+	for (const [, group] of byHash) {
+		const external = group.filter(
+			(t: any) => t.category === 'external',
+		)
+		const tokens = group.filter(
+			(t: any) => t.category === 'erc20',
+		)
+
+		const extOut = external.filter(
+			(t: any) => t.from?.toLowerCase() === addrLower,
+		)
+		const extIn = external.filter(
+			(t: any) => t.to?.toLowerCase() === addrLower,
+		)
+		const tokIn = tokens.filter(
+			(t: any) => t.to?.toLowerCase() === addrLower,
+		)
+		const tokOut = tokens.filter(
+			(t: any) => t.from?.toLowerCase() === addrLower,
+		)
+
+		if (extOut.length > 0 && tokIn.length > 0) {
+			combined.push({
+				...mapTransfer(extOut[0]),
+				tokenSymbol: tokIn[0].asset,
+				tokenDecimal: tokIn[0].rawContract?.decimal
+					? String(parseInt(tokIn[0].rawContract.decimal, 16))
+					: undefined,
+				contractAddress:
+					tokIn[0].rawContract?.address ?? undefined,
+				pairedValue: String(tokIn[0].value),
+				pairedSymbol: tokIn[0].asset,
+				pairedDecimals: tokIn[0].rawContract?.decimal
+					? String(parseInt(tokIn[0].rawContract.decimal, 16))
+					: undefined,
+				pairedContractAddress:
+					tokIn[0].rawContract?.address ?? undefined,
+			})
+		} else if (extOut.length > 0) {
+			combined.push(mapTransfer(extOut[0]))
+		} else if (extIn.length > 0) {
+			combined.push(mapTransfer(extIn[0]))
+		} else if (tokOut.length > 0 && tokIn.length > 0) {
+			combined.push({
+				...mapTransfer(tokOut[0]),
+				pairedValue: String(tokIn[0].value),
+				pairedSymbol: tokIn[0].asset,
+				pairedDecimals: tokIn[0].rawContract?.decimal
+					? String(parseInt(tokIn[0].rawContract.decimal, 16))
+					: undefined,
+				pairedContractAddress:
+					tokIn[0].rawContract?.address ?? undefined,
+			})
+		} else if (tokOut.length > 0) {
+			combined.push(mapTransfer(tokOut[0]))
+		} else if (tokIn.length > 0) {
+			combined.push(mapTransfer(tokIn[0]))
+		}
+	}
+
+	if (key && chainid) {
+		const addrSet = new Set<string>()
+		for (const entry of combined) {
+			if (entry.contractAddress)
+				addrSet.add(entry.contractAddress.toLowerCase())
+			if (entry.pairedContractAddress)
+				addrSet.add(entry.pairedContractAddress.toLowerCase())
+		}
+		const logoMap = new Map<string, string>()
+		await Promise.all(
+			Array.from(addrSet).map(async (addr) => {
+				const meta = await getTokenMetadata(key, chainid, addr)
+				if (meta?.result?.logo)
+					logoMap.set(addr, meta.result.logo)
+			}),
+		)
+		for (const entry of combined) {
+			if (entry.contractAddress)
+				entry.logo = logoMap.get(
+					entry.contractAddress.toLowerCase(),
+				)
+			if (entry.pairedContractAddress)
+				entry.pairedLogo = logoMap.get(
+					entry.pairedContractAddress.toLowerCase(),
+				)
+		}
+	}
+
+	combined.sort(
+		(a, b) => Number(b.timeStamp) - Number(a.timeStamp),
+	)
+
+	return combined
+}
+
 let moneroManager: MoneroWalletManager | null = null
 let moneroDownloading = false
 
@@ -285,117 +397,14 @@ const rpc = BrowserView.defineRPC<RPC>({
 					return []
 				}
 
-				const addrLower = address.toLowerCase()
-				const byHash = new Map<string, any[]>()
-				for (const t of all) {
-					if (!t.hash) continue
-					const h = t.hash
-					if (!byHash.has(h)) byHash.set(h, [])
-					byHash.get(h)!.push(t)
-				}
-
-				const combined: TxEntry[] = []
-
-				for (const [, group] of byHash) {
-					const external = group.filter(
-						(t: any) => t.category === 'external',
-					)
-					const tokens = group.filter(
-						(t: any) => t.category === 'erc20',
-					)
-
-					const extOut = external.filter(
-						(t: any) => t.from.toLowerCase() === addrLower,
-					)
-					const extIn = external.filter(
-						(t: any) => t.to.toLowerCase() === addrLower,
-					)
-					const tokIn = tokens.filter(
-						(t: any) => t.to.toLowerCase() === addrLower,
-					)
-					const tokOut = tokens.filter(
-						(t: any) => t.from.toLowerCase() === addrLower,
-					)
-
-					if (extOut.length > 0 && tokIn.length > 0) {
-						combined.push({
-							...mapTransfer(extOut[0]),
-							tokenSymbol: tokIn[0].asset,
-							tokenDecimal: tokIn[0].rawContract?.decimal
-								? String(parseInt(tokIn[0].rawContract.decimal, 16))
-								: undefined,
-							contractAddress:
-								tokIn[0].rawContract?.address ?? undefined,
-							pairedValue: String(tokIn[0].value),
-							pairedSymbol: tokIn[0].asset,
-							pairedDecimals: tokIn[0].rawContract?.decimal
-								? String(parseInt(tokIn[0].rawContract.decimal, 16))
-								: undefined,
-							pairedContractAddress:
-								tokIn[0].rawContract?.address ?? undefined,
-						})
-					} else if (extOut.length > 0) {
-						combined.push(mapTransfer(extOut[0]))
-					} else if (extIn.length > 0) {
-						combined.push(mapTransfer(extIn[0]))
-					} else if (tokOut.length > 0 && tokIn.length > 0) {
-						combined.push({
-							...mapTransfer(tokOut[0]),
-							pairedValue: String(tokIn[0].value),
-							pairedSymbol: tokIn[0].asset,
-							pairedDecimals: tokIn[0].rawContract?.decimal
-								? String(parseInt(tokIn[0].rawContract.decimal, 16))
-								: undefined,
-							pairedContractAddress:
-								tokIn[0].rawContract?.address ?? undefined,
-						})
-					} else if (tokOut.length > 0) {
-						combined.push(mapTransfer(tokOut[0]))
-					} else if (tokIn.length > 0) {
-						combined.push(mapTransfer(tokIn[0]))
-					}
-				}
-
-				const addrSet = new Set<string>()
-				for (const entry of combined) {
-					if (entry.contractAddress)
-						addrSet.add(entry.contractAddress.toLowerCase())
-					if (entry.pairedContractAddress)
-						addrSet.add(entry.pairedContractAddress.toLowerCase())
-				}
-
-				const logoMap = new Map<string, string>()
-				await Promise.all(
-					Array.from(addrSet).map(async (addr) => {
-						const meta = await getTokenMetadata(key, chainid, addr)
-						if (meta?.result?.logo)
-							logoMap.set(addr, meta.result.logo)
-					}),
-				)
-
-				for (const entry of combined) {
-					if (entry.contractAddress)
-						entry.logo = logoMap.get(
-							entry.contractAddress.toLowerCase(),
-						)
-					if (entry.pairedContractAddress)
-						entry.pairedLogo = logoMap.get(
-							entry.pairedContractAddress.toLowerCase(),
-						)
-				}
-
-				combined.sort(
-					(a, b) => Number(b.timeStamp) - Number(a.timeStamp),
-				)
-
-				return combined
+				return pairTransfers(all, address, key, chainid)
 			},
 			fetchCachedTxHistory: async ({ address, chainid }) => {
 				const transfers = await getCachedTransactionHistory(
 					chainid,
 					address,
 				)
-				return transfers.map(mapTransfer)
+				return pairTransfers(transfers, address)
 			},
 			syncTxHistory: async ({ address, chainid }) => {
 				const key = await Bun.secrets.get({
