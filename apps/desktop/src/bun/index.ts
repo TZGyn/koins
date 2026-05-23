@@ -104,6 +104,12 @@ const ALCHEMY_NETWORKS: Record<string, string> = {
 	'56': 'bnb-mainnet',
 }
 
+const NATIVE_SYMBOLS: Record<string, string> = {
+	'1': 'ETH',
+	'137': 'POL',
+	'56': 'BNB',
+}
+
 
 
 async function fetchAlchemyTransfers(
@@ -271,6 +277,14 @@ async function pairTransfers(
 					: undefined,
 				pairedContractAddress:
 					tokIn[0].rawContract?.address ?? undefined,
+			})
+		} else if (tokOut.length > 0 && extIn.length > 0) {
+			combined.push({
+				...mapTransfer(tokOut[0]),
+				pairedValue: String(extIn[0].value),
+				pairedSymbol: chainid
+					? NATIVE_SYMBOLS[chainid]
+					: undefined,
 			})
 		} else if (tokOut.length > 0) {
 			combined.push(mapTransfer(tokOut[0]))

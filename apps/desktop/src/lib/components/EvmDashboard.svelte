@@ -459,7 +459,7 @@
 													((e.target as HTMLElement).style.display =
 														'none')} />
 											{Number(tx.pairedValue).toFixed(4)}
-											{tx.pairedSymbol}
+											{tx.pairedSymbol ?? w.symbol}
 										{:else if tx.tokenSymbol}
 											<img
 												src={tx.logo ||

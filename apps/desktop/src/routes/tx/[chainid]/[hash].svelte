@@ -124,7 +124,7 @@
 								{network?.symbol ?? 'ETH'}
 								<span class="mx-1">→</span>
 								{Number(details.pairedValue).toFixed(4)}
-								{details.pairedSymbol}
+								{details.pairedSymbol ?? network?.symbol ?? 'ETH'}
 							</p>
 						</div>
 					{/if}
