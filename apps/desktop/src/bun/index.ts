@@ -712,6 +712,23 @@ const rpc = BrowserView.defineRPC<RPC>({
 				)
 				return wallets
 			},
+			moneroTransfer: async ({ address, amount, priority, accountIndex }) => {
+				console.log('[rpc] moneroTransfer:', {
+					address,
+					amount,
+					priority,
+				})
+				if (!moneroManager)
+					throw new Error('Monero wallet RPC not started')
+				const result = await moneroManager.transfer(
+					address,
+					BigInt(amount),
+					priority ?? 0,
+					accountIndex ?? 0,
+				)
+				console.log('[rpc] moneroTransfer complete:', result.txHash)
+				return result
+			},
 			evmCreateWallet: async ({ name, phrase, passwordHash }) => {
 				console.log('[rpc] evmCreateWallet:', name)
 				const id = crypto.randomUUID()

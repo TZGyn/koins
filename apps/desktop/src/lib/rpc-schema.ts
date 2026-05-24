@@ -40,6 +40,12 @@ export type MoneroSubaddressEntry = {
 	numBlocksToUnlock: number
 }
 
+export type MoneroSendResult = {
+	txHash: string
+	fee: string
+	amount: string
+}
+
 export type MoneroAccountEntry = {
 	index: number
 	primaryAddress: string
@@ -129,6 +135,7 @@ export type RPC = {
 			moneroWalletStatus: { params: {}; response: MoneroWalletStatus }
 			moneroGetAccounts: { params: {}; response: MoneroAccountEntry[] }
 			moneroListWallets: { params: {}; response: string[] }
+			moneroTransfer: { params: { address: string; amount: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
 			evmCreateWallet: { params: { name: string; phrase: string; passwordHash?: string }; response: { id: string; name: string; createdAt: string } }
 			evmListWallets: { params: {}; response: EvmWalletInfo[] }
 			evmGetSeed: { params: { vaultKey: string }; response: string }

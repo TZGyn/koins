@@ -1,4 +1,4 @@
-import { electrobun, type MoneroTxEntry, type MoneroAccountEntry } from '$lib/electrobun'
+	import { electrobun, type MoneroTxEntry, type MoneroAccountEntry, type MoneroSendResult } from '$lib/electrobun'
 import { tryCatch } from '@koins/utils'
 
 export const moneroNetwork = {
@@ -229,6 +229,23 @@ export const MoneroWallet = () => {
 		}
 	}
 
+	const send = async (
+		address: string,
+		amountAtomic: string,
+		priority?: number,
+		accountIndex?: number,
+	): Promise<MoneroSendResult> => {
+		if (!electrobun.rpc) throw new Error('RPC not available')
+		const result = await electrobun.rpc.request.moneroTransfer({
+			address,
+			amount: amountAtomic,
+			priority,
+			accountIndex,
+		})
+		await refresh()
+		return result
+	}
+
 	return {
 		get accountType() { return accountType },
 		get ready() { return ready },
@@ -273,6 +290,7 @@ export const MoneroWallet = () => {
 		restoreWallet,
 		openWallet,
 		refresh,
+		send,
 	}
 }
 

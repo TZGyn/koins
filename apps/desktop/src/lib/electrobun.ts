@@ -7,6 +7,7 @@ export type {
 	MoneroWalletStatus,
 	MoneroSubaddressEntry,
 	MoneroAccountEntry,
+	MoneroSendResult,
 	TxEntry,
 	TransactionDetails,
 	TokenBalanceResult,

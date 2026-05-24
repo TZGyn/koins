@@ -219,6 +219,9 @@
 							{/if}
 							Refresh
 						</Button>
+						<Button variant="outline" onclick={() => navigate('/monero/send')}>
+							Send
+						</Button>
 						<Button variant="outline" onclick={() => navigate('/monero/settings')}>
 							<SettingsIcon size={16} />
 						</Button>

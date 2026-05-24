@@ -337,6 +337,30 @@ export class MoneroWalletManager {
 		}
 	}
 
+	async transfer(
+		address: string,
+		amount: bigint,
+		priority: number = 0,
+		accountIndex: number = 0,
+	): Promise<{ txHash: string; fee: string; amount: string }> {
+		if (!this.wallet) throw new Error('Wallet RPC not started')
+		console.log(`[monero] transfer: ${address} amount=${amount.toString()} priority=${priority} account=${accountIndex}`)
+		const result = await this.rawRpc('transfer', {
+			destinations: [{ address, amount: amount.toString() }],
+			priority,
+			account_index: accountIndex,
+			get_tx_key: true,
+			get_tx_hex: false,
+			get_tx_metadata: false,
+		})
+		console.log(`[monero] transfer result: tx_hash=${result.tx_hash} fee=${result.fee} amount=${result.amount}`)
+		return {
+			txHash: result.tx_hash,
+			fee: result.fee?.toString() ?? '0',
+			amount: result.amount?.toString() ?? amount.toString(),
+		}
+	}
+
 	async isWalletOpen(): Promise<boolean> {
 		if (!this.wallet) return false
 		try {
