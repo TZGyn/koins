@@ -39,6 +39,7 @@ export const MoneroWallet = () => {
 	let wallets = $state<string[]>([])
 	let loading = $state(false)
 	let error = $state('')
+	let selectedAccountIndex = $state(0)
 
 	const checkBiometric = async () => {
 		if (!electrobun.rpc) return
@@ -218,7 +219,9 @@ export const MoneroWallet = () => {
 				daemonHeight = bal.daemonHeight
 			}
 			const [result] = await tryCatch(
-				electrobun.rpc.request.moneroGetTransactions({}),
+				electrobun.rpc.request.moneroGetTransactions({
+					accountIndex: selectedAccountIndex,
+				}),
 			)
 			txs = result ?? []
 			await fetchAccounts()
@@ -273,6 +276,8 @@ export const MoneroWallet = () => {
 		set downloading(v: boolean) { downloading = v },
 		set running(v: boolean) { running = v },
 		set connected(v: boolean) { connected = v },
+		get selectedAccountIndex() { return selectedAccountIndex },
+		set selectedAccountIndex(v: number) { selectedAccountIndex = v },
 		init,
 		login,
 		logout,

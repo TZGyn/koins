@@ -123,6 +123,7 @@ export type RPC = {
 			fetchTokenBalances: { params: { address: string; chainid: string }; response: TokenBalanceResult[] }
 			fetchTransactionDetails: { params: { hash: string; chainid: string; address?: string }; response: TransactionDetails | null }
 			openExternal: { params: { url: string }; response: void }
+			generateQrCode: { params: { text: string; size?: number }; response: string }
 			moneroBinaryStatus: { params: {}; response: MoneroBinaryStatus }
 			moneroDownloadBinary: { params: {}; response: void }
 			moneroStart: { params: { daemonAddress?: string }; response: MoneroWalletStatus }
@@ -131,7 +132,7 @@ export type RPC = {
 			moneroRestoreWallet: { params: { name: string; password: string; mnemonic: string; restoreHeight?: number }; response: { address: string } }
 			moneroOpenWallet: { params: { name: string; password: string }; response: void }
 			moneroGetBalance: { params: {}; response: MoneroBalance }
-			moneroGetTransactions: { params: {}; response: MoneroTxEntry[] }
+			moneroGetTransactions: { params: { accountIndex?: number }; response: MoneroTxEntry[] }
 			moneroWalletStatus: { params: {}; response: MoneroWalletStatus }
 			moneroGetAccounts: { params: {}; response: MoneroAccountEntry[] }
 			moneroListWallets: { params: {}; response: string[] }

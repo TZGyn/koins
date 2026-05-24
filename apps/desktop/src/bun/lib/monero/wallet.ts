@@ -274,45 +274,35 @@ export class MoneroWalletManager {
 		return accounts?.map((a) => a.toJson()) ?? []
 	}
 
-	async getTransactions(): Promise<any[]> {
+	async getTransactions(accountIndex?: number): Promise<any[]> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
-		const txs = (await this.wallet.getTxs()) as any[]
-		console.log(`[monero] transactions: ${txs?.length ?? 0} returned`)
-		if (txs?.length) {
-			for (const tx of txs.slice(0, 5)) {
-				const isIn = tx.getIsIncoming()
-				const isOut = tx.getIsOutgoing()
-				const amt = isIn
-					? (tx.getIncomingAmount() ?? 0n)
-					: (tx.getOutgoingAmount() ?? 0n)
-				console.log(
-					`[monero]   tx: hash=${(tx.getHash() ?? '').substring(0, 12)} amount=${amt.toString()} dir=${isIn ? 'in' : 'out'} height=${tx.getHeight() ?? 0}`,
-				)
-			}
-			if (txs.length > 5)
-				console.log(`[monero]   ... and ${txs.length - 5} more`)
+		const params: Record<string, any> = {
+			in: true,
+			out: true,
+			pending: false,
+			pool: false,
 		}
-		const result = (txs || []).map((tx: any) => {
-			const isIn = tx.getIsIncoming()
-			const isOut = tx.getIsOutgoing()
-			const amt = isIn
-				? (tx.getIncomingAmount() ?? 0n)
-				: (tx.getOutgoingAmount() ?? 0n)
-			const block = tx.getBlock()
-			const ts =
-				block?.getTimestamp() ?? tx.getReceivedTimestamp() ?? 0
-			return {
-				hash: tx.getHash(),
-				amount: amt?.toString() ?? '0',
-				timestamp: String(ts),
-				direction: isIn ? ('in' as const) : ('out' as const),
-				height: tx.getHeight() ?? 0,
+		if (accountIndex !== undefined) {
+			params.account_index = accountIndex
+		}
+		const result = await this.rawRpc('get_transfers', params)
+		const all: any[] = []
+		for (const dir of ['in', 'out'] as const) {
+			const transfers = result[dir] ?? []
+			for (const t of transfers) {
+				all.push({
+					hash: t.txid,
+					amount: t.amount?.toString() ?? '0',
+					timestamp: String(t.timestamp ?? 0),
+					direction: dir === 'in' ? ('in' as const) : ('out' as const),
+					height: t.height ?? 0,
+					note: t.note,
+				})
 			}
-		})
-		result.sort(
-			(a: any, b: any) => Number(b.timestamp) - Number(a.timestamp),
-		)
-		return result
+		}
+		all.sort((a: any, b: any) => Number(b.timestamp) - Number(a.timestamp))
+		console.log(`[monero] transactions: ${all.length} returned${accountIndex !== undefined ? ` for account ${accountIndex}` : ''}`)
+		return all
 	}
 
 	async getHeight(): Promise<number> {

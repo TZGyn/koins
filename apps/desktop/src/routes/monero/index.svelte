@@ -15,6 +15,7 @@
 	import Fingerprint from '@lucide/svelte/icons/fingerprint'
 	import SettingsIcon from '@lucide/svelte/icons/settings'
 	import Loader from '$lib/components/loader.svelte'
+	import QrCode from '$lib/components/qr.svelte'
 	import { navigate } from 'sv-router/generated'
 
 	const w = moneroWallet
@@ -194,8 +195,13 @@
 				</CardHeader>
 				<CardContent>
 					<div class="mb-4 space-y-1">
-						<p class="font-medium text-xs">Address</p>
-						<p class="font-mono text-xs break-all">{w.address}</p>
+						<div class="flex items-start gap-3">
+							<QrCode text={w.address} size={128} />
+							<div class="min-w-0 flex-1 space-y-1">
+								<p class="font-medium text-xs">Address</p>
+								<p class="font-mono text-xs break-all">{w.address}</p>
+							</div>
+						</div>
 						<p class="mt-2 font-medium text-xs">Balance</p>
 						<p class="font-mono text-lg">{w.balance} XMR</p>
 						{#if w.unlockedAtomic !== w.balAtomic}
@@ -236,6 +242,19 @@
 			<Card>
 				<CardHeader>
 					<CardTitle>Transactions</CardTitle>
+					{#if w.accounts.length > 0}
+						<CardDescription>
+							<div class="flex flex-wrap gap-1.5 mt-1">
+								{#each w.accounts as acct}
+									<button
+										onclick={() => { w.selectedAccountIndex = acct.index; w.refresh() }}
+										class="rounded-md px-2 py-0.5 text-xs transition-colors {w.selectedAccountIndex === acct.index ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}">
+										Account {acct.index}
+									</button>
+								{/each}
+							</div>
+						</CardDescription>
+					{/if}
 				</CardHeader>
 				<CardContent>
 					{#if w.loading}
@@ -299,15 +318,20 @@
 							{#if account.subaddresses.length > 1}
 								<div class="space-y-1 border-t border-border pt-2">
 									<p class="text-xs text-muted-foreground mb-1">Subaddresses</p>
-									{#each account.subaddresses as sub}
-										<div class="rounded-sm bg-background px-2 py-1.5 text-xs">
-											<div class="flex items-center justify-between">
-												<p class="font-medium">#{sub.index}{sub.label ? ` - ${sub.label}` : ''}</p>
-												<p class="text-muted-foreground">{atomicToXmr(sub.balance)} XMR</p>
+								{#each account.subaddresses as sub}
+									<div class="rounded-sm bg-background px-2 py-1.5 text-xs">
+										<div class="flex items-start gap-2">
+											<QrCode text={sub.address} size={64} />
+											<div class="min-w-0 flex-1">
+												<div class="flex items-center justify-between">
+													<p class="font-medium">#{sub.index}{sub.label ? ` - ${sub.label}` : ''}</p>
+													<p class="text-muted-foreground">{atomicToXmr(sub.balance)} XMR</p>
+												</div>
+												<p class="font-mono text-muted-foreground/50 truncate mt-0.5">{sub.address}</p>
 											</div>
-											<p class="font-mono text-muted-foreground/50 truncate">{sub.address}</p>
 										</div>
-									{/each}
+									</div>
+								{/each}
 								</div>
 							{/if}
 						</div>

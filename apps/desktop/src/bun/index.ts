@@ -395,6 +395,14 @@ const rpc = BrowserView.defineRPC<RPC>({
 			openExternal: async ({ url }) => {
 				Utils.openExternal(url)
 			},
+			generateQrCode: async ({ text, size }) => {
+				const { default: QRCode } = await import('qrcode')
+				return QRCode.toString(text, {
+					type: 'svg',
+					width: size ?? 128,
+					margin: 1,
+				})
+			},
 			fetchTxHistory: async ({ address, chainid }) => {
 				const key = await Bun.secrets.get({
 					service: 'koins',
@@ -653,25 +661,15 @@ const rpc = BrowserView.defineRPC<RPC>({
 					daemonHeight,
 				}
 			},
-			moneroGetTransactions: async () => {
-				console.log('[rpc] moneroGetTransactions')
+			moneroGetTransactions: async ({ accountIndex }) => {
+				console.log('[rpc] moneroGetTransactions', { accountIndex })
 				if (!moneroManager)
 					throw new Error('Monero wallet RPC not started')
-				const txs = await moneroManager.getTransactions()
-				const result = (txs || []).map((tx: any) => ({
-					hash: tx.hash,
-					amount: tx.amount?.toString() ?? '0',
-					timestamp: String(tx.timestamp ?? 0),
-					direction:
-						tx.direction === 'in'
-							? ('in' as const)
-							: ('out' as const),
-					height: tx.height ?? 0,
-				}))
+				const txs = await moneroManager.getTransactions(accountIndex)
 				console.log(
-					`[rpc] moneroGetTransactions: ${result.length} txs`,
+					`[rpc] moneroGetTransactions: ${txs.length} txs`,
 				)
-				return result
+				return txs
 			},
 			moneroWalletStatus: async () => {
 				if (!moneroManager) {
