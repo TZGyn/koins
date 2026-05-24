@@ -29,6 +29,23 @@
 	let moneroUseBiometric = $state(false)
 
 	let initStarted = false
+	let autoRefreshTimer: ReturnType<typeof setInterval> | undefined = $state()
+
+	$effect(() => {
+		if (w.walletOpen && !autoRefreshTimer) {
+			autoRefreshTimer = setInterval(() => w.refresh(), 30000)
+		} else if (!w.walletOpen && autoRefreshTimer) {
+			clearInterval(autoRefreshTimer)
+			autoRefreshTimer = undefined
+		}
+		return () => {
+			if (autoRefreshTimer) {
+				clearInterval(autoRefreshTimer)
+				autoRefreshTimer = undefined
+			}
+		}
+	})
+
 	$effect(() => {
 		if (!initStarted) {
 			initStarted = true
@@ -219,12 +236,6 @@
 					{/if}
 
 					<div class="flex gap-2">
-						<Button onclick={() => { w.refresh(); w.fetchAccounts(); }} disabled={w.loading}>
-							{#if w.loading}
-								<Loader />
-							{/if}
-							Refresh
-						</Button>
 						<Button variant="outline" onclick={() => navigate('/monero/send')}>
 							Send
 						</Button>
