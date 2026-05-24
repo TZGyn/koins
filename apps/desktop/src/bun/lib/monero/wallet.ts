@@ -305,6 +305,38 @@ export class MoneroWalletManager {
 		return all
 	}
 
+	async getTransferDetails(txid: string): Promise<any> {
+		if (!this.wallet) throw new Error('Wallet RPC not started')
+		const result = await this.rawRpc('get_transfer_by_txid', { txid })
+		if (!result?.transfer) return null
+		const t = result.transfer
+		const isIn = t.type === 'in'
+		const isOut = t.type === 'out'
+		const dests = t.destinations?.map((d: any) => ({
+			address: d.address,
+			amount: d.amount?.toString() ?? '0',
+		})) ?? []
+		const subaddrIndices = isIn
+			? [{ major: t.subaddr_index?.major ?? 0, minor: t.subaddr_index?.minor ?? 0 }]
+			: (t.subaddr_indices ?? []).map((s: any) => ({ major: s.major ?? 0, minor: s.minor ?? 0 }))
+		return {
+			hash: t.txid,
+			direction: isIn ? ('in' as const) : ('out' as const),
+			amount: t.amount?.toString() ?? '0',
+			fee: t.fee?.toString() ?? '0',
+			height: t.height ?? 0,
+			timestamp: String(t.timestamp ?? 0),
+			confirmations: t.confirmations ?? 0,
+			unlockTime: t.unlock_time ?? 0,
+			locked: t.locked ?? false,
+			doubleSpend: t.double_spend_seen ?? false,
+			note: t.note,
+			paymentId: t.payment_id ?? '',
+			destinations: dests,
+			subaddrIndices,
+		}
+	}
+
 	async getHeight(): Promise<number> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
 		const height = (await this.wallet.getHeight()) as number

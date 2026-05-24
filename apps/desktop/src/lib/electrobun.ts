@@ -8,6 +8,7 @@ export type {
 	MoneroSubaddressEntry,
 	MoneroAccountEntry,
 	MoneroSendResult,
+	MoneroTransferDetails,
 	TxEntry,
 	TransactionDetails,
 	TokenBalanceResult,

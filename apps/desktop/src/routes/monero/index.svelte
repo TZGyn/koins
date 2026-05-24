@@ -266,7 +266,9 @@
 					{:else}
 						<div class="max-h-96 space-y-1 overflow-y-auto">
 							{#each w.txs as tx}
-								<div class="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs">
+								<button
+									onclick={() => navigate(`/monero/tx/${tx.hash}`)}
+									class="flex w-full items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs text-left cursor-pointer hover:bg-muted/80 transition-colors">
 									<div class="shrink-0 mt-0.5 {tx.direction === 'in' ? 'text-green-500' : 'text-muted-foreground'}">
 										{#if tx.direction === 'in'}
 											<ArrowDown size={16} />
@@ -288,7 +290,7 @@
 											{tx.hash.slice(0, 12)}...
 										</p>
 									</div>
-								</div>
+								</button>
 							{/each}
 						</div>
 					{/if}

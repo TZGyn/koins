@@ -46,6 +46,23 @@ export type MoneroSendResult = {
 	amount: string
 }
 
+export type MoneroTransferDetails = {
+	hash: string
+	direction: 'in' | 'out'
+	amount: string
+	fee: string
+	height: number
+	timestamp: string
+	confirmations: number
+	unlockTime: number
+	locked: boolean
+	doubleSpend: boolean
+	note?: string
+	paymentId: string
+	destinations: { address: string; amount: string }[]
+	subaddrIndices: { major: number; minor: number }[]
+}
+
 export type MoneroAccountEntry = {
 	index: number
 	primaryAddress: string
@@ -137,6 +154,7 @@ export type RPC = {
 			moneroGetAccounts: { params: {}; response: MoneroAccountEntry[] }
 			moneroListWallets: { params: {}; response: string[] }
 			moneroTransfer: { params: { address: string; amount: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
+			moneroGetTransferDetails: { params: { txid: string }; response: MoneroTransferDetails | null }
 			evmCreateWallet: { params: { name: string; phrase: string; passwordHash?: string }; response: { id: string; name: string; createdAt: string } }
 			evmListWallets: { params: {}; response: EvmWalletInfo[] }
 			evmGetSeed: { params: { vaultKey: string }; response: string }

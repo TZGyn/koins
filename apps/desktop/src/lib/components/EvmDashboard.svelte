@@ -261,6 +261,12 @@
 						? 'bg-primary text-primary-foreground'
 						: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
 					onclick={() => navigate(navTarget(net.id))}>
+					<img
+						src={nativeIcon(net.id)}
+						alt=""
+						class="-ml-0.5 mr-1 inline-block size-3.5 rounded-full align-middle"
+						onerror={(e) =>
+							((e.target as HTMLElement).style.display = 'none')} />
 					{net.name}
 				</button>
 			{/each}
