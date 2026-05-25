@@ -92,7 +92,10 @@
 		value: string
 		currency: string
 	} | null>(null)
-	let tokenPrices = $state<Record<string, { value: string; currency: string }>>({})
+	let tokenPrices = $state<
+		Record<string, { value: string; currency: string }>
+	>({})
+	let gasPrice = $state<string | null>(null)
 
 	$effect(() => {
 		const syms: string[] = w.symbol ? [w.symbol] : []
@@ -107,20 +110,42 @@
 		}
 		if (syms.length > 0 || addrs.length > 0) {
 			electrobun.rpc?.request
-				.fetchTokenPrices({ symbols: syms.length > 0 ? syms : undefined, addresses: addrs.length > 0 ? addrs : undefined })
+				.fetchTokenPrices({
+					symbols: syms.length > 0 ? syms : undefined,
+					addresses: addrs.length > 0 ? addrs : undefined,
+				})
 				.then((prices) => {
-					const usd = prices.find((p) => p.currency === 'usd' && p.symbol === w.symbol && !p.address)
+					const usd = prices.find(
+						(p) =>
+							p.currency === 'usd' &&
+							p.symbol === w.symbol &&
+							!p.address,
+					)
 					nativePrice = usd
 						? { value: usd.value, currency: usd.currency }
 						: null
-					const map: Record<string, { value: string; currency: string }> = {}
+					const map: Record<
+						string,
+						{ value: string; currency: string }
+					> = {}
 					for (const p of prices) {
 						if (p.currency === 'usd' && p.address) {
-							map[p.address.toLowerCase()] = { value: p.value, currency: p.currency }
+							map[p.address.toLowerCase()] = {
+								value: p.value,
+								currency: p.currency,
+							}
 						}
 					}
 					tokenPrices = map
 				})
+		}
+	})
+
+	$effect(() => {
+		if (w.chainid) {
+			electrobun.rpc?.request
+				.fetchGasPrice({ chainid: w.chainid })
+				.then((gp) => (gasPrice = gp))
 		}
 	})
 
@@ -386,16 +411,37 @@
 							{w.symbol}
 						</p>
 						{#if nativePrice}
-							{@const balVal = Number(w.balance) * Number(nativePrice.value)}
+							{@const balVal =
+								Number(w.balance) * Number(nativePrice.value)}
 							<p class="font-mono text-xs text-muted-foreground">
-								${balVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ ${Number(nativePrice.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/{w.symbol}
+								${balVal.toLocaleString(undefined, {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2,
+								})} @ ${Number(nativePrice.value).toLocaleString(
+									undefined,
+									{
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2,
+									},
+								)}/{w.symbol}
+							</p>
+						{/if}
+						{#if gasPrice}
+							{@const gasNative = Number(gasPrice) * 21000 / 1e9}
+							<p class="font-mono text-xs text-muted-foreground mt-1">
+								Gas: {Number(gasPrice).toFixed(1)} Gwei
+								({gasNative.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 })} {w.symbol})
+								{#if nativePrice}
+									${(gasNative * Number(nativePrice.value)).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+								{/if}
 							</p>
 						{/if}
 					</div>
 					<div class="mb-4 space-y-1">
 						<p class="font-medium text-xs">Tokens</p>
 						{#each w.tokenBalances as t}
-							<div class="flex items-center gap-1.5 font-mono text-sm">
+							<div
+								class="flex items-center gap-1.5 font-mono text-sm">
 								<img
 									src={t.logo}
 									alt=""
@@ -409,10 +455,22 @@
 								{t.symbol}
 							</div>
 							{#if t.contractAddress && tokenPrices[t.contractAddress.toLowerCase()]}
-								{@const val = tokenPrices[t.contractAddress.toLowerCase()]}
-								{@const balVal = Number(t.balance) * Number(val.value)}
-								<p class="font-mono text-xs text-muted-foreground -mt-0.5 ml-6">
-									${balVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ ${Number(val.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/{t.symbol}
+								{@const val =
+									tokenPrices[t.contractAddress.toLowerCase()]}
+								{@const balVal =
+									Number(t.balance) * Number(val.value)}
+								<p
+									class="font-mono text-xs text-muted-foreground -mt-0.5 ml-6">
+									${balVal.toLocaleString(undefined, {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2,
+									})} @ ${Number(val.value).toLocaleString(
+										undefined,
+										{
+											minimumFractionDigits: 2,
+											maximumFractionDigits: 2,
+										},
+									)}/{t.symbol}
 								</p>
 							{/if}
 						{/each}
@@ -485,10 +543,11 @@
 									})}
 								class="flex w-full cursor-pointer items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs text-left hover:bg-muted/80 transition-colors">
 								<div
-									class="shrink-0 mt-0.5 {txAction(tx, w.address) === 'Swap'
+									class="shrink-0 mt-0.5 {txAction(tx, w.address) ===
+									'Swap'
 										? 'text-yellow-500'
 										: tx.from.toLowerCase() ===
-										w.address.toLowerCase()
+											  w.address.toLowerCase()
 											? 'text-muted-foreground'
 											: 'text-green-500'}">
 									{#if txAction(tx, w.address) === 'Swap'}

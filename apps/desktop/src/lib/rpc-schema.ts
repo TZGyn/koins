@@ -169,6 +169,7 @@ export type RPC = {
 			evmGetSeed: { params: { vaultKey: string }; response: string }
 			evmDeleteWallet: { params: { id: string }; response: void }
 			fetchTokenPrices: { params: { symbols?: string[]; addresses?: { network: string; address: string }[] }; response: TokenPriceEntry[] }
+			fetchGasPrice: { params: { chainid: string }; response: string | null }
 		}
 		messages: {}
 	}

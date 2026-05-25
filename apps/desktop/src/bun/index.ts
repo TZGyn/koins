@@ -21,6 +21,7 @@ import { db } from './lib/db'
 import { join } from 'path'
 import { getENV } from './lib/get-env'
 import { getClient } from './lib/viem'
+import { formatGwei } from 'viem'
 import {
 	isBinaryInstalled,
 	downloadBinary,
@@ -502,13 +503,20 @@ const rpc = BrowserView.defineRPC<RPC>({
 
 					if (symbols && symbols.length > 0) {
 						const url = `https://api.g.alchemy.com/prices/v1/${key}/tokens/by-symbol?${symbols.map((s) => `symbols=${encodeURIComponent(s)}`).join('&')}`
-						const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
+						const res = await fetch(url, {
+							signal: AbortSignal.timeout(10000),
+						})
 						if (res.ok) {
 							const body = await res.json()
 							const data = (body.data ?? []) as any[]
 							for (const d of data) {
 								for (const p of d.prices ?? []) {
-									results.push({ symbol: d.symbol, currency: p.currency, value: p.value, lastUpdatedAt: p.lastUpdatedAt })
+									results.push({
+										symbol: d.symbol,
+										currency: p.currency,
+										value: p.value,
+										lastUpdatedAt: p.lastUpdatedAt,
+									})
 								}
 							}
 						}
@@ -527,7 +535,14 @@ const rpc = BrowserView.defineRPC<RPC>({
 							const data = (body.data ?? []) as any[]
 							for (const d of data) {
 								for (const p of d.prices ?? []) {
-									results.push({ symbol: d.symbol, currency: p.currency, value: p.value, lastUpdatedAt: p.lastUpdatedAt, network: d.network, address: d.address })
+									results.push({
+										symbol: d.symbol,
+										currency: p.currency,
+										value: p.value,
+										lastUpdatedAt: p.lastUpdatedAt,
+										network: d.network,
+										address: d.address,
+									})
 								}
 							}
 						}
@@ -538,6 +553,30 @@ const rpc = BrowserView.defineRPC<RPC>({
 				} catch (error) {
 					console.log('[prices] error:', error)
 					return []
+				}
+			},
+			fetchGasPrice: async ({ chainid }) => {
+				const key = await Bun.secrets.get({
+					service: 'koins',
+					name: 'alchemy_key',
+				})
+				if (!key) {
+					console.log('[gas] no key')
+					return null
+				}
+				try {
+					const client = getClient(chainid, key)
+					const gasPrice = await client.getGasPrice()
+					console.log(
+						'[gas] price for chain',
+						chainid,
+						':',
+						gasPrice.toString(),
+					)
+					return formatGwei(gasPrice)
+				} catch (error) {
+					console.log('[gas] error:', error)
+					return null
 				}
 			},
 			fetchTransactionDetails: async ({ hash, chainid, address }) => {
