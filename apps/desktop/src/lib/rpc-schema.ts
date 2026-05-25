@@ -73,6 +73,12 @@ export type MoneroAccountEntry = {
 	subaddresses: MoneroSubaddressEntry[]
 }
 
+export type MoneroFeeEstimate = {
+	fee: string
+	fees: string[]
+	estimatedFee: string
+}
+
 export type TxEntry = {
 	hash: string
 	timeStamp: string
@@ -164,6 +170,7 @@ export type RPC = {
 			moneroListWallets: { params: {}; response: string[] }
 			moneroTransfer: { params: { address: string; amount: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
 			moneroGetTransferDetails: { params: { txid: string }; response: MoneroTransferDetails | null }
+			moneroGetFeeEstimate: { params: {}; response: MoneroFeeEstimate | null }
 			evmCreateWallet: { params: { name: string; phrase: string; passwordHash?: string }; response: { id: string; name: string; createdAt: string } }
 			evmListWallets: { params: {}; response: EvmWalletInfo[] }
 			evmGetSeed: { params: { vaultKey: string }; response: string }

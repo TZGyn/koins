@@ -814,6 +814,19 @@ const rpc = BrowserView.defineRPC<RPC>({
 				)
 				return details
 			},
+			moneroGetFeeEstimate: async () => {
+				console.log('[rpc] moneroGetFeeEstimate')
+				if (!moneroManager)
+					throw new Error('Monero wallet RPC not started')
+				try {
+					const fee = await moneroManager.getFeeEstimate()
+					console.log('[monero][gas][fee]', fee)
+					return fee
+				} catch (error) {
+					console.log('[monero][gas][error]', error)
+					return
+				}
+			},
 			evmCreateWallet: async ({ name, phrase, passwordHash }) => {
 				console.log('[rpc] evmCreateWallet:', name)
 				const id = crypto.randomUUID()

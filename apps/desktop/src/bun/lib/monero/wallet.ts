@@ -294,14 +294,19 @@ export class MoneroWalletManager {
 					hash: t.txid,
 					amount: t.amount?.toString() ?? '0',
 					timestamp: String(t.timestamp ?? 0),
-					direction: dir === 'in' ? ('in' as const) : ('out' as const),
+					direction:
+						dir === 'in' ? ('in' as const) : ('out' as const),
 					height: t.height ?? 0,
 					note: t.note,
 				})
 			}
 		}
-		all.sort((a: any, b: any) => Number(b.timestamp) - Number(a.timestamp))
-		console.log(`[monero] transactions: ${all.length} returned${accountIndex !== undefined ? ` for account ${accountIndex}` : ''}`)
+		all.sort(
+			(a: any, b: any) => Number(b.timestamp) - Number(a.timestamp),
+		)
+		console.log(
+			`[monero] transactions: ${all.length} returned${accountIndex !== undefined ? ` for account ${accountIndex}` : ''}`,
+		)
 		return all
 	}
 
@@ -312,13 +317,22 @@ export class MoneroWalletManager {
 		const t = result.transfer
 		const isIn = t.type === 'in'
 		const isOut = t.type === 'out'
-		const dests = t.destinations?.map((d: any) => ({
-			address: d.address,
-			amount: d.amount?.toString() ?? '0',
-		})) ?? []
+		const dests =
+			t.destinations?.map((d: any) => ({
+				address: d.address,
+				amount: d.amount?.toString() ?? '0',
+			})) ?? []
 		const subaddrIndices = isIn
-			? [{ major: t.subaddr_index?.major ?? 0, minor: t.subaddr_index?.minor ?? 0 }]
-			: (t.subaddr_indices ?? []).map((s: any) => ({ major: s.major ?? 0, minor: s.minor ?? 0 }))
+			? [
+					{
+						major: t.subaddr_index?.major ?? 0,
+						minor: t.subaddr_index?.minor ?? 0,
+					},
+				]
+			: (t.subaddr_indices ?? []).map((s: any) => ({
+					major: s.major ?? 0,
+					minor: s.minor ?? 0,
+				}))
 		return {
 			hash: t.txid,
 			direction: isIn ? ('in' as const) : ('out' as const),
@@ -344,6 +358,43 @@ export class MoneroWalletManager {
 		return height
 	}
 
+	async getFeeEstimate(): Promise<{
+		fee: string
+		fees: string[]
+		estimatedFee: string
+	}> {
+		try {
+			const conn = new MoneroRpcConnection({
+				uri: `http://${this.daemonAddress}`,
+			})
+			const res = await conn.sendJsonRequest('get_fee_estimate', {
+				grace_blocks: 10,
+			})
+			if (res?.error) throw new Error(res.error.message)
+			console.log('[rpc][get_fee_estimate][response]', res)
+			const result = res?.result
+			const txSizeKb = 2.5
+			const feePerKb = BigInt(result.fee ?? '0')
+			const fees = (result.fees ?? []).map((f: string) =>
+				BigInt(f).toString(),
+			)
+			const estimated =
+				(feePerKb * BigInt(Math.round(txSizeKb * 10))) / 10n
+			return {
+				fee: feePerKb.toString(),
+				fees,
+				estimatedFee: estimated.toString(),
+			}
+		} catch (e) {
+			console.log('[monero] getFeeEstimate error:', e)
+			return {
+				fee: '0',
+				fees: ['0', '0', '0', '0'],
+				estimatedFee: '0',
+			}
+		}
+	}
+
 	async getDaemonHeight(): Promise<number> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
 		try {
@@ -366,7 +417,9 @@ export class MoneroWalletManager {
 		accountIndex: number = 0,
 	): Promise<{ txHash: string; fee: string; amount: string }> {
 		if (!this.wallet) throw new Error('Wallet RPC not started')
-		console.log(`[monero] transfer: ${address} amount=${amount.toString()} priority=${priority} account=${accountIndex}`)
+		console.log(
+			`[monero] transfer: ${address} amount=${amount.toString()} priority=${priority} account=${accountIndex}`,
+		)
 		const result = await this.rawRpc('transfer', {
 			destinations: [{ address, amount: amount.toString() }],
 			priority,
@@ -375,7 +428,9 @@ export class MoneroWalletManager {
 			get_tx_hex: false,
 			get_tx_metadata: false,
 		})
-		console.log(`[monero] transfer result: tx_hash=${result.tx_hash} fee=${result.fee} amount=${result.amount}`)
+		console.log(
+			`[monero] transfer result: tx_hash=${result.tx_hash} fee=${result.fee} amount=${result.amount}`,
+		)
 		return {
 			txHash: result.tx_hash,
 			fee: result.fee?.toString() ?? '0',
