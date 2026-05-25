@@ -11,7 +11,8 @@
 		"skipLibCheck": true,
 		"paths": {
 			"$lib": ["./src/lib"],
-			"$lib/*": ["./src/lib/*"]
+			"$lib/*": ["./src/lib/*"],
+			"sv-router/generated": ["./.router/router.ts"]
 		},
 		"types": ["bun-types", "node"]
 	}

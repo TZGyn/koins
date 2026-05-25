@@ -33,7 +33,9 @@ function rpcUrl(state: MoneroWalletState): string {
 	return `http://127.0.0.1:${state.rpcPort}`
 }
 
-function rpcConnection(state: MoneroWalletState): MoneroRpcConnection {
+function rpcConnection(
+	state: MoneroWalletState,
+): MoneroRpcConnection {
 	return new MoneroRpcConnection({
 		uri: rpcUrl(state),
 		username: state.rpcUser,
@@ -41,14 +43,22 @@ function rpcConnection(state: MoneroWalletState): MoneroRpcConnection {
 	})
 }
 
-async function rawRpc(state: MoneroWalletState, method: string, params: Record<string, any> = {}): Promise<any> {
+async function rawRpc(
+	state: MoneroWalletState,
+	method: string,
+	params: Record<string, any> = {},
+): Promise<any> {
 	const conn = rpcConnection(state)
 	const res = await conn.sendJsonRequest(method, params)
-	if (res?.error) throw new Error(res.error.message || JSON.stringify(res.error))
+	if (res?.error)
+		throw new Error(res.error.message || JSON.stringify(res.error))
 	return res?.result
 }
 
-async function waitForRpc(state: MoneroWalletState, timeoutMs = 30000): Promise<void> {
+async function waitForRpc(
+	state: MoneroWalletState,
+	timeoutMs = 30000,
+): Promise<void> {
 	const start = Date.now()
 	let lastErr = ''
 	while (Date.now() - start < timeoutMs) {
@@ -57,7 +67,9 @@ async function waitForRpc(state: MoneroWalletState, timeoutMs = 30000): Promise<
 				hostname: '127.0.0.1',
 				port: state.rpcPort,
 				socket: {
-					open(s) { s.end() },
+					open(s) {
+						s.end()
+					},
 					close() {},
 					data() {},
 					error() {},
@@ -70,12 +82,19 @@ async function waitForRpc(state: MoneroWalletState, timeoutMs = 30000): Promise<
 		}
 		await new Promise((r) => setTimeout(r, 500))
 	}
-	throw new Error(`monero-wallet-rpc failed to start within ${timeoutMs}ms: ${lastErr}`)
+	throw new Error(
+		`monero-wallet-rpc failed to start within ${timeoutMs}ms: ${lastErr}`,
+	)
 }
 
-export async function start(state: MoneroWalletState, daemonAddress: string = DEFAULT_DAEMON) {
+export async function start(
+	state: MoneroWalletState,
+	daemonAddress: string = DEFAULT_DAEMON,
+) {
 	if (!existsSync(getBinaryPath()))
-		throw new Error('monero-wallet-rpc not installed. Call downloadBinary() first.')
+		throw new Error(
+			'monero-wallet-rpc not installed. Call downloadBinary() first.',
+		)
 	state.daemonAddress = daemonAddress
 
 	console.log(`[monero] starting wallet-rpc process...`)
@@ -84,11 +103,16 @@ export async function start(state: MoneroWalletState, daemonAddress: string = DE
 
 	const cmd = [
 		getBinaryPath(),
-		'--daemon-address', state.daemonAddress,
-		'--rpc-bind-port', String(state.rpcPort),
-		'--rpc-bind-ip', '127.0.0.1',
-		'--wallet-dir', getWalletDir(),
-		'--rpc-login', `${state.rpcUser}:${state.rpcPassword}`,
+		'--daemon-address',
+		state.daemonAddress,
+		'--rpc-bind-port',
+		String(state.rpcPort),
+		'--rpc-bind-ip',
+		'127.0.0.1',
+		'--wallet-dir',
+		getWalletDir(),
+		'--rpc-login',
+		`${state.rpcUser}:${state.rpcPassword}`,
 		'--trusted-daemon',
 	]
 
@@ -98,42 +122,57 @@ export async function start(state: MoneroWalletState, daemonAddress: string = DE
 		stdout: 'pipe',
 		stderr: 'pipe',
 		onExit(_proc, exitCode, _signalCode, error) {
-			console.log(`[monero] wallet-rpc process exited with code ${exitCode}`, error?.message ?? '')
+			console.log(
+				`[monero] wallet-rpc process exited with code ${exitCode}`,
+				error?.message ?? '',
+			)
 		},
 	})
 	console.log(`[monero] wallet-rpc pid: ${state.process.pid}`)
 
-	const stdout = state.process.stdout.getReader()
+	const reader = (state.process!.stdout as ReadableStream<Uint8Array>).getReader()
 	;(async () => {
 		while (true) {
-			const { done, value } = await stdout.read()
+			const { done, value } = await reader.read()
 			if (done) break
-			console.log(`[monero:stdout] ${new TextDecoder().decode(value)}`)
+			console.log(
+				`[monero:stdout] ${new TextDecoder().decode(value)}`,
+			)
 		}
 	})()
 
-	const stderr = state.process.stderr.getReader()
+	const stderr = (state.process!.stderr as ReadableStream<Uint8Array>).getReader()
 	;(async () => {
 		while (true) {
 			const { done, value } = await stderr.read()
 			if (done) break
-			console.log(`[monero:stderr] ${new TextDecoder().decode(value)}`)
+			console.log(
+				`[monero:stderr] ${new TextDecoder().decode(value)}`,
+			)
 		}
 	})()
 
-	console.log(`[monero] waiting for RPC server to become available...`)
+	console.log(
+		`[monero] waiting for RPC server to become available...`,
+	)
 	await waitForRpc(state)
 	console.log(`[monero] RPC server is ready`)
 
 	console.log(`[monero] connecting MoneroWalletRpc client...`)
-	state.wallet = await connectToWalletRpc(rpcUrl(state), state.rpcUser, state.rpcPassword) as MoneroWalletRpc
+	state.wallet = (await connectToWalletRpc(
+		rpcUrl(state),
+		state.rpcUser,
+		state.rpcPassword,
+	)) as MoneroWalletRpc
 	console.log(`[monero] MoneroWalletRpc connected successfully`)
 }
 
 export async function stop(state: MoneroWalletState) {
 	console.log(`[monero] stopping wallet manager...`)
 	if (state.process) {
-		console.log(`[monero] killing wallet-rpc process (pid ${state.process.pid})`)
+		console.log(
+			`[monero] killing wallet-rpc process (pid ${state.process.pid})`,
+		)
 		state.process.kill()
 		state.process = null
 	}
@@ -141,24 +180,48 @@ export async function stop(state: MoneroWalletState) {
 	console.log(`[monero] wallet manager stopped`)
 }
 
-export async function createWallet(state: MoneroWalletState, name: string, password: string) {
+export async function createWallet(
+	state: MoneroWalletState,
+	name: string,
+	password: string,
+) {
 	console.log(`[monero] creating wallet: ${name}`)
-	const result = await rawRpc(state, 'create_wallet', { filename: name, password, language: 'English' })
+	const result = await rawRpc(state, 'create_wallet', {
+		filename: name,
+		password,
+		language: 'English',
+	})
 	if (!state.wallet) throw new Error('Wallet RPC not started')
 	const address = await state.wallet.getAddress(0, 0)
 	console.log(`[monero] wallet created: ${name} -> ${address}`)
 	return { mnemonic: result.mnemonic, address }
 }
 
-export async function restoreWallet(state: MoneroWalletState, name: string, password: string, mnemonic: string, restoreHeight?: number) {
-	console.log(`[monero] restoring wallet: ${name} (height: ${restoreHeight ?? 0})`)
+export async function restoreWallet(
+	state: MoneroWalletState,
+	name: string,
+	password: string,
+	mnemonic: string,
+	restoreHeight?: number,
+) {
+	console.log(
+		`[monero] restoring wallet: ${name} (height: ${restoreHeight ?? 0})`,
+	)
 	await rawRpc(state, 'restore_deterministic_wallet', {
-		filename: name, password, seed: mnemonic, restore_height: restoreHeight ?? 0, language: 'English',
+		filename: name,
+		password,
+		seed: mnemonic,
+		restore_height: restoreHeight ?? 0,
+		language: 'English',
 	})
 	console.log(`[monero] wallet restored: ${name}`)
 }
 
-export async function openWallet(state: MoneroWalletState, name: string, password: string) {
+export async function openWallet(
+	state: MoneroWalletState,
+	name: string,
+	password: string,
+) {
 	console.log(`[monero] opening wallet: ${name}`)
 	if (!state.wallet) throw new Error('Wallet RPC not started')
 	await state.wallet.openWallet(name, password)
@@ -172,42 +235,68 @@ export async function closeWallet(state: MoneroWalletState) {
 	console.log(`[monero] wallet closed`)
 }
 
-export async function getBalance(state: MoneroWalletState): Promise<{ balance: bigint; unlocked: bigint }> {
+export async function getBalance(
+	state: MoneroWalletState,
+): Promise<{ balance: bigint; unlocked: bigint }> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const balance = await state.wallet.getBalance() as bigint
-	const unlocked = await state.wallet.getUnlockedBalance() as bigint
+	const balance = (await state.wallet.getBalance()) as bigint
+	const unlocked = (await state.wallet.getUnlockedBalance()) as bigint
 	console.log(`[monero] balance: ${balance} (unlocked: ${unlocked})`)
 	return { balance, unlocked }
 }
 
-export async function getAddress(state: MoneroWalletState, accountIdx = 0, subIdx = 0): Promise<string> {
+export async function getAddress(
+	state: MoneroWalletState,
+	accountIdx = 0,
+	subIdx = 0,
+): Promise<string> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const address = await state.wallet.getAddress(accountIdx, subIdx) as string
+	const address = (await state.wallet.getAddress(
+		accountIdx,
+		subIdx,
+	)) as string
 	console.log(`[monero] address: ${address}`)
 	return address
 }
 
-export async function getAccounts(state: MoneroWalletState): Promise<any[]> {
+export async function getAccounts(
+	state: MoneroWalletState,
+): Promise<any[]> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const accounts = await state.wallet.getAccounts(true) as any[]
+	const accounts = (await state.wallet.getAccounts(true)) as any[]
 	console.log(`[monero] accounts: ${accounts?.length ?? 0} returned`)
 	if (accounts?.length) {
 		for (const acct of accounts) {
 			const subs = acct.getSubaddresses() ?? []
-			console.log(`[monero]   account ${acct.getIndex()}: balance=${acct.getBalance()?.toString() ?? '0'} subs=${subs.length} primary=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`)
+			console.log(
+				`[monero]   account ${acct.getIndex()}: balance=${acct.getBalance()?.toString() ?? '0'} subs=${subs.length} primary=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`,
+			)
 			const has0 = subs.some((s: any) => s.getIndex() === 0)
-			if (!has0) console.log(`[monero]     sub 0 (primary): addr=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`)
+			if (!has0)
+				console.log(
+					`[monero]     sub 0 (primary): addr=${(acct.getPrimaryAddress() ?? '').substring(0, 16)}...`,
+				)
 			for (const sub of subs) {
-				console.log(`[monero]     sub ${sub.getIndex()}: addr=${(sub.getAddress() ?? '').substring(0, 16)}... label=${sub.getLabel() ?? ''} balance=${sub.getBalance()?.toString() ?? '0'} used=${sub.getIsUsed()}`)
+				console.log(
+					`[monero]     sub ${sub.getIndex()}: addr=${(sub.getAddress() ?? '').substring(0, 16)}... label=${sub.getLabel() ?? ''} balance=${sub.getBalance()?.toString() ?? '0'} used=${sub.getIsUsed()}`,
+				)
 			}
 		}
 	}
 	return accounts?.map((a) => a.toJson()) ?? []
 }
 
-export async function getTransactions(state: MoneroWalletState, accountIndex?: number): Promise<any[]> {
+export async function getTransactions(
+	state: MoneroWalletState,
+	accountIndex?: number,
+): Promise<any[]> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const params: Record<string, any> = { in: true, out: true, pending: false, pool: false }
+	const params: Record<string, any> = {
+		in: true,
+		out: true,
+		pending: false,
+		pool: false,
+	}
 	if (accountIndex !== undefined) params.account_index = accountIndex
 	const result = await rawRpc(state, 'get_transfers', params)
 	const all: any[] = []
@@ -224,22 +313,41 @@ export async function getTransactions(state: MoneroWalletState, accountIndex?: n
 			})
 		}
 	}
-	all.sort((a: any, b: any) => Number(b.timestamp) - Number(a.timestamp))
-	console.log(`[monero] transactions: ${all.length} returned${accountIndex !== undefined ? ` for account ${accountIndex}` : ''}`)
+	all.sort(
+		(a: any, b: any) => Number(b.timestamp) - Number(a.timestamp),
+	)
+	console.log(
+		`[monero] transactions: ${all.length} returned${accountIndex !== undefined ? ` for account ${accountIndex}` : ''}`,
+	)
 	return all
 }
 
-export async function getTransferDetails(state: MoneroWalletState, txid: string): Promise<any> {
+export async function getTransferDetails(
+	state: MoneroWalletState,
+	txid: string,
+): Promise<any> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
 	const result = await rawRpc(state, 'get_transfer_by_txid', { txid })
 	if (!result?.transfer) return null
 	const t = result.transfer
 	const isIn = t.type === 'in'
 	const isOut = t.type === 'out'
-	const dests = t.destinations?.map((d: any) => ({ address: d.address, amount: d.amount?.toString() ?? '0' })) ?? []
+	const dests =
+		t.destinations?.map((d: any) => ({
+			address: d.address,
+			amount: d.amount?.toString() ?? '0',
+		})) ?? []
 	const subaddrIndices = isIn
-		? [{ major: t.subaddr_index?.major ?? 0, minor: t.subaddr_index?.minor ?? 0 }]
-		: (t.subaddr_indices ?? []).map((s: any) => ({ major: s.major ?? 0, minor: s.minor ?? 0 }))
+		? [
+				{
+					major: t.subaddr_index?.major ?? 0,
+					minor: t.subaddr_index?.minor ?? 0,
+				},
+			]
+		: (t.subaddr_indices ?? []).map((s: any) => ({
+				major: s.major ?? 0,
+				minor: s.minor ?? 0,
+			}))
 	return {
 		hash: t.txid,
 		direction: isIn ? ('in' as const) : ('out' as const),
@@ -258,36 +366,55 @@ export async function getTransferDetails(state: MoneroWalletState, txid: string)
 	}
 }
 
-export async function getHeight(state: MoneroWalletState): Promise<number> {
+export async function getHeight(
+	state: MoneroWalletState,
+): Promise<number> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const height = await state.wallet.getHeight() as number
+	const height = (await state.wallet.getHeight()) as number
 	console.log(`[monero] wallet height: ${height}`)
 	return height
 }
 
-export async function getFeeEstimate(state: MoneroWalletState): Promise<{ fee: string; fees: string[]; estimatedFee: string }> {
+export async function getFeeEstimate(
+	state: MoneroWalletState,
+): Promise<{ fee: string; fees: string[]; estimatedFee: string }> {
 	try {
-		const conn = new MoneroRpcConnection({ uri: `http://${state.daemonAddress}` })
-		const res = await conn.sendJsonRequest('get_fee_estimate', { grace_blocks: 10 })
+		const conn = new MoneroRpcConnection({
+			uri: `http://${state.daemonAddress}`,
+		})
+		const res = await conn.sendJsonRequest('get_fee_estimate', {
+			grace_blocks: 10,
+		})
 		if (res?.error) throw new Error(res.error.message)
 		console.log('[rpc][get_fee_estimate][response]', res)
 		const result = res?.result
 		const txSizeKb = 2.5
 		const feePerKb = BigInt(result.fee ?? '0')
-		const fees = (result.fees ?? []).map((f: string) => BigInt(f).toString())
-		const estimated = (feePerKb * BigInt(Math.round(txSizeKb * 10))) / 10n
-		return { fee: feePerKb.toString(), fees, estimatedFee: estimated.toString() }
+		const fees = (result.fees ?? []).map((f: string) =>
+			BigInt(f).toString(),
+		)
+		const estimated =
+			(feePerKb * BigInt(Math.round(txSizeKb * 10))) / 10n
+		return {
+			fee: feePerKb.toString(),
+			fees,
+			estimatedFee: estimated.toString(),
+		}
 	} catch (e) {
 		console.log('[monero] getFeeEstimate error:', e)
 		return { fee: '0', fees: ['0', '0', '0', '0'], estimatedFee: '0' }
 	}
 }
 
-export async function getDaemonHeight(state: MoneroWalletState): Promise<number> {
+export async function getDaemonHeight(
+	state: MoneroWalletState,
+): Promise<number> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
 	try {
-		const daemon = await connectToDaemonRpc(`http://${state.daemonAddress}`)
-		const height = await daemon.getHeight() as number
+		const daemon = await connectToDaemonRpc(
+			`http://${state.daemonAddress}`,
+		)
+		const height = (await daemon.getHeight()) as number
 		console.log(`[monero] daemon height: ${height}`)
 		return height
 	} catch (e) {
@@ -304,7 +431,9 @@ export async function transfer(
 	accountIndex: number = 0,
 ): Promise<{ txHash: string; fee: string; amount: string }> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	console.log(`[monero] transfer: ${address} amount=${amount.toString()} priority=${priority} account=${accountIndex}`)
+	console.log(
+		`[monero] transfer: ${address} amount=${amount.toString()} priority=${priority} account=${accountIndex}`,
+	)
 	const result = await rawRpc(state, 'transfer', {
 		destinations: [{ address, amount: amount.toString() }],
 		priority,
@@ -313,8 +442,14 @@ export async function transfer(
 		get_tx_hex: false,
 		get_tx_metadata: false,
 	})
-	console.log(`[monero] transfer result: tx_hash=${result.tx_hash} fee=${result.fee} amount=${result.amount}`)
-	return { txHash: result.tx_hash, fee: result.fee?.toString() ?? '0', amount: result.amount?.toString() ?? amount.toString() }
+	console.log(
+		`[monero] transfer result: tx_hash=${result.tx_hash} fee=${result.fee} amount=${result.amount}`,
+	)
+	return {
+		txHash: result.tx_hash,
+		fee: result.fee?.toString() ?? '0',
+		amount: result.amount?.toString() ?? amount.toString(),
+	}
 }
 
 export function listWallets(): string[] {
@@ -325,7 +460,9 @@ export function listWallets(): string[] {
 		.map((f) => f.replace(/\.keys$/, ''))
 }
 
-export async function isWalletOpen(state: MoneroWalletState): Promise<boolean> {
+export async function isWalletOpen(
+	state: MoneroWalletState,
+): Promise<boolean> {
 	if (!state.wallet) return false
 	try {
 		await state.wallet.getHeight()
@@ -335,10 +472,14 @@ export async function isWalletOpen(state: MoneroWalletState): Promise<boolean> {
 	}
 }
 
-export async function isConnected(state: MoneroWalletState): Promise<boolean> {
+export async function isConnected(
+	state: MoneroWalletState,
+): Promise<boolean> {
 	if (!state.wallet) return false
 	try {
-		const daemon = await connectToDaemonRpc(`http://${state.daemonAddress}`)
+		const daemon = await connectToDaemonRpc(
+			`http://${state.daemonAddress}`,
+		)
 		await daemon.getHeight()
 		return true
 	} catch (e) {
