@@ -38,7 +38,12 @@ import {
 	evmWallets,
 } from './lib/db/schema'
 import { syncTxDetails } from './lib/sync/sync-tx-details'
-import type { RPC, TokenBalanceResult, TxEntry } from '../lib/rpc-schema'
+import type {
+	RPC,
+	TokenBalanceResult,
+	TokenPriceEntry,
+	TxEntry,
+} from '../lib/rpc-schema'
 
 const env = getENV()
 
@@ -109,8 +114,6 @@ const NATIVE_SYMBOLS: Record<string, string> = {
 	'137': 'POL',
 	'56': 'BNB',
 }
-
-
 
 async function fetchAlchemyTransfers(
 	key: string,
@@ -227,11 +230,10 @@ async function pairTransfers(
 
 	for (const [, group] of byHash) {
 		const native = group.filter(
-			(t: any) => t.category === 'external' || t.category === 'internal',
+			(t: any) =>
+				t.category === 'external' || t.category === 'internal',
 		)
-		const tokens = group.filter(
-			(t: any) => t.category === 'erc20',
-		)
+		const tokens = group.filter((t: any) => t.category === 'erc20')
 
 		const extOut = native.filter(
 			(t: any) => t.from?.toLowerCase() === addrLower,
@@ -253,8 +255,7 @@ async function pairTransfers(
 				tokenDecimal: tokIn[0].rawContract?.decimal
 					? String(parseInt(tokIn[0].rawContract.decimal, 16))
 					: undefined,
-				contractAddress:
-					tokIn[0].rawContract?.address ?? undefined,
+				contractAddress: tokIn[0].rawContract?.address ?? undefined,
 				pairedValue: String(tokIn[0].value),
 				pairedSymbol: tokIn[0].asset,
 				pairedDecimals: tokIn[0].rawContract?.decimal
@@ -282,9 +283,7 @@ async function pairTransfers(
 			combined.push({
 				...mapTransfer(tokOut[0]),
 				pairedValue: String(extIn[0].value),
-				pairedSymbol: chainid
-					? NATIVE_SYMBOLS[chainid]
-					: undefined,
+				pairedSymbol: chainid ? NATIVE_SYMBOLS[chainid] : undefined,
 			})
 		} else if (tokOut.length > 0) {
 			combined.push(mapTransfer(tokOut[0]))
@@ -305,15 +304,12 @@ async function pairTransfers(
 		await Promise.all(
 			Array.from(addrSet).map(async (addr) => {
 				const meta = await getTokenMetadata(key, chainid, addr)
-				if (meta?.result?.logo)
-					logoMap.set(addr, meta.result.logo)
+				if (meta?.result?.logo) logoMap.set(addr, meta.result.logo)
 			}),
 		)
 		for (const entry of combined) {
 			if (entry.contractAddress)
-				entry.logo = logoMap.get(
-					entry.contractAddress.toLowerCase(),
-				)
+				entry.logo = logoMap.get(entry.contractAddress.toLowerCase())
 			if (entry.pairedContractAddress)
 				entry.pairedLogo = logoMap.get(
 					entry.pairedContractAddress.toLowerCase(),
@@ -321,9 +317,7 @@ async function pairTransfers(
 		}
 	}
 
-	combined.sort(
-		(a, b) => Number(b.timeStamp) - Number(a.timeStamp),
-	)
+	combined.sort((a, b) => Number(b.timeStamp) - Number(a.timeStamp))
 
 	return combined
 }
@@ -497,6 +491,55 @@ const rpc = BrowserView.defineRPC<RPC>({
 					return []
 				}
 			},
+			fetchTokenPrices: async ({ symbols, addresses }) => {
+				const key = await Bun.secrets.get({
+					service: 'koins',
+					name: 'alchemy_key',
+				})
+				if (!key) return []
+				try {
+					const results: TokenPriceEntry[] = []
+
+					if (symbols && symbols.length > 0) {
+						const url = `https://api.g.alchemy.com/prices/v1/${key}/tokens/by-symbol?${symbols.map((s) => `symbols=${encodeURIComponent(s)}`).join('&')}`
+						const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
+						if (res.ok) {
+							const body = await res.json()
+							const data = (body.data ?? []) as any[]
+							for (const d of data) {
+								for (const p of d.prices ?? []) {
+									results.push({ symbol: d.symbol, currency: p.currency, value: p.value, lastUpdatedAt: p.lastUpdatedAt })
+								}
+							}
+						}
+					}
+
+					if (addresses && addresses.length > 0) {
+						const url = `https://api.g.alchemy.com/prices/v1/${key}/tokens/by-address`
+						const res = await fetch(url, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ addresses }),
+							signal: AbortSignal.timeout(10000),
+						})
+						if (res.ok) {
+							const body = await res.json()
+							const data = (body.data ?? []) as any[]
+							for (const d of data) {
+								for (const p of d.prices ?? []) {
+									results.push({ symbol: d.symbol, currency: p.currency, value: p.value, lastUpdatedAt: p.lastUpdatedAt, network: d.network, address: d.address })
+								}
+							}
+						}
+					}
+
+					console.log('[prices] results:', results.length)
+					return results
+				} catch (error) {
+					console.log('[prices] error:', error)
+					return []
+				}
+			},
 			fetchTransactionDetails: async ({ hash, chainid, address }) => {
 				const key = await Bun.secrets.get({
 					service: 'koins',
@@ -520,20 +563,11 @@ const rpc = BrowserView.defineRPC<RPC>({
 							.all()
 
 						if (transfers.length > 0) {
-							const paired = await pairTransfers(
-								transfers,
-								address,
-							)
-							if (
-								paired.length > 0 &&
-								paired[0].pairedValue
-							) {
-								details.pairedValue =
-									paired[0].pairedValue
-								details.pairedSymbol =
-									paired[0].pairedSymbol
-								details.pairedDecimals =
-									paired[0].pairedDecimals
+							const paired = await pairTransfers(transfers, address)
+							if (paired.length > 0 && paired[0].pairedValue) {
+								details.pairedValue = paired[0].pairedValue
+								details.pairedSymbol = paired[0].pairedSymbol
+								details.pairedDecimals = paired[0].pairedDecimals
 								details.pairedContractAddress =
 									paired[0].pairedContractAddress
 								details.pairedLogo = paired[0].pairedLogo
@@ -666,9 +700,7 @@ const rpc = BrowserView.defineRPC<RPC>({
 				if (!moneroManager)
 					throw new Error('Monero wallet RPC not started')
 				const txs = await moneroManager.getTransactions(accountIndex)
-				console.log(
-					`[rpc] moneroGetTransactions: ${txs.length} txs`,
-				)
+				console.log(`[rpc] moneroGetTransactions: ${txs.length} txs`)
 				return txs
 			},
 			moneroWalletStatus: async () => {
@@ -710,7 +742,12 @@ const rpc = BrowserView.defineRPC<RPC>({
 				)
 				return wallets
 			},
-			moneroTransfer: async ({ address, amount, priority, accountIndex }) => {
+			moneroTransfer: async ({
+				address,
+				amount,
+				priority,
+				accountIndex,
+			}) => {
 				console.log('[rpc] moneroTransfer:', {
 					address,
 					amount,
@@ -732,7 +769,10 @@ const rpc = BrowserView.defineRPC<RPC>({
 				if (!moneroManager)
 					throw new Error('Monero wallet RPC not started')
 				const details = await moneroManager.getTransferDetails(txid)
-				console.log('[rpc] moneroGetTransferDetails complete:', details?.hash)
+				console.log(
+					'[rpc] moneroGetTransferDetails complete:',
+					details?.hash,
+				)
 				return details
 			},
 			evmCreateWallet: async ({ name, phrase, passwordHash }) => {

@@ -116,6 +116,15 @@ export type TokenBalanceResult = {
 	logo?: string
 }
 
+export type TokenPriceEntry = {
+	symbol: string
+	currency: string
+	value: string
+	lastUpdatedAt: string
+	network?: string
+	address?: string
+}
+
 export type EvmWalletInfo = {
 	id: string
 	name: string
@@ -159,6 +168,7 @@ export type RPC = {
 			evmListWallets: { params: {}; response: EvmWalletInfo[] }
 			evmGetSeed: { params: { vaultKey: string }; response: string }
 			evmDeleteWallet: { params: { id: string }; response: void }
+			fetchTokenPrices: { params: { symbols?: string[]; addresses?: { network: string; address: string }[] }; response: TokenPriceEntry[] }
 		}
 		messages: {}
 	}

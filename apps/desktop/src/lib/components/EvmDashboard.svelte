@@ -81,7 +81,49 @@
 		return `/multicoin/${id}`
 	}
 
+	const CHAIN_NETWORKS: Record<string, string> = {
+		'1': 'eth-mainnet',
+		'137': 'polygon-mainnet',
+		'56': 'bnb-mainnet',
+	}
+
 	let initStarted = false
+	let nativePrice = $state<{
+		value: string
+		currency: string
+	} | null>(null)
+	let tokenPrices = $state<Record<string, { value: string; currency: string }>>({})
+
+	$effect(() => {
+		const syms: string[] = w.symbol ? [w.symbol] : []
+		const addrs: { network: string; address: string }[] = []
+		const network = CHAIN_NETWORKS[w.chainid]
+		if (network) {
+			for (const t of w.tokenBalances) {
+				if (t.contractAddress) {
+					addrs.push({ network, address: t.contractAddress })
+				}
+			}
+		}
+		if (syms.length > 0 || addrs.length > 0) {
+			electrobun.rpc?.request
+				.fetchTokenPrices({ symbols: syms.length > 0 ? syms : undefined, addresses: addrs.length > 0 ? addrs : undefined })
+				.then((prices) => {
+					const usd = prices.find((p) => p.currency === 'usd' && p.symbol === w.symbol && !p.address)
+					nativePrice = usd
+						? { value: usd.value, currency: usd.currency }
+						: null
+					const map: Record<string, { value: string; currency: string }> = {}
+					for (const p of prices) {
+						if (p.currency === 'usd' && p.address) {
+							map[p.address.toLowerCase()] = { value: p.value, currency: p.currency }
+						}
+					}
+					tokenPrices = map
+				})
+		}
+	})
+
 	$effect(() => {
 		if (!initStarted) {
 			initStarted = true
@@ -343,11 +385,17 @@
 							{w.balance}
 							{w.symbol}
 						</p>
+						{#if nativePrice}
+							{@const balVal = Number(w.balance) * Number(nativePrice.value)}
+							<p class="font-mono text-xs text-muted-foreground">
+								${balVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ ${Number(nativePrice.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/{w.symbol}
+							</p>
+						{/if}
 					</div>
 					<div class="mb-4 space-y-1">
 						<p class="font-medium text-xs">Tokens</p>
 						{#each w.tokenBalances as t}
-							<p class="flex items-center gap-1.5 font-mono text-sm">
+							<div class="flex items-center gap-1.5 font-mono text-sm">
 								<img
 									src={t.logo}
 									alt=""
@@ -359,7 +407,14 @@
 									? '<0.0001'
 									: Number(t.balance).toFixed(4)}
 								{t.symbol}
-							</p>
+							</div>
+							{#if t.contractAddress && tokenPrices[t.contractAddress.toLowerCase()]}
+								{@const val = tokenPrices[t.contractAddress.toLowerCase()]}
+								{@const balVal = Number(t.balance) * Number(val.value)}
+								<p class="font-mono text-xs text-muted-foreground -mt-0.5 ml-6">
+									${balVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ ${Number(val.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/{t.symbol}
+								</p>
+							{/if}
 						{/each}
 					</div>
 				{/if}
