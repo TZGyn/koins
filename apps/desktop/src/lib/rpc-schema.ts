@@ -139,45 +139,53 @@ export type EvmWalletInfo = {
 	createdAt: string
 }
 
+export type GeneralRpcRequests = {
+	resetApp: { params: {}; response: boolean }
+	biometricCanAuth: { params: {}; response: boolean }
+	biometricAuth: { params: { reason: string }; response: boolean }
+	getSecret: { params: { service: string; name: string }; response: string | null }
+	setSecret: { params: { service: string; name: string; value: string }; response: void }
+	openExternal: { params: { url: string }; response: void }
+	generateQrCode: { params: { text: string; size?: number }; response: string }
+}
+
+export type EvmRpcRequests = {
+	fetchTxHistory: { params: { address: string; chainid: string }; response: TxEntry[] }
+	fetchCachedTxHistory: { params: { address: string; chainid: string }; response: TxEntry[] }
+	syncTxHistory: { params: { address: string; chainid: string }; response: void }
+	flushTxCache: { params: {}; response: void }
+	setAutoSync: { params: { address: string; chainid: string } | null; response: void }
+	fetchTokenBalances: { params: { address: string; chainid: string }; response: TokenBalanceResult[] }
+	fetchTransactionDetails: { params: { hash: string; chainid: string; address?: string }; response: TransactionDetails | null }
+	fetchTokenPrices: { params: { symbols?: string[]; addresses?: { network: string; address: string }[] }; response: TokenPriceEntry[] }
+	fetchGasPrice: { params: { chainid: string }; response: string | null }
+	evmCreateWallet: { params: { name: string; phrase: string; passwordHash?: string }; response: { id: string; name: string; createdAt: string } }
+	evmListWallets: { params: {}; response: EvmWalletInfo[] }
+	evmGetSeed: { params: { vaultKey: string }; response: string }
+	evmDeleteWallet: { params: { id: string }; response: void }
+}
+
+export type MoneroRpcRequests = {
+	moneroBinaryStatus: { params: {}; response: MoneroBinaryStatus }
+	moneroDownloadBinary: { params: {}; response: void }
+	moneroStart: { params: { daemonAddress?: string }; response: MoneroWalletStatus }
+	moneroStop: { params: {}; response: void }
+	moneroCreateWallet: { params: { name: string; password: string }; response: { mnemonic: string; address: string } }
+	moneroRestoreWallet: { params: { name: string; password: string; mnemonic: string; restoreHeight?: number }; response: { address: string } }
+	moneroOpenWallet: { params: { name: string; password: string }; response: void }
+	moneroGetBalance: { params: {}; response: MoneroBalance }
+	moneroGetTransactions: { params: { accountIndex?: number }; response: MoneroTxEntry[] }
+	moneroWalletStatus: { params: {}; response: MoneroWalletStatus }
+	moneroGetAccounts: { params: {}; response: MoneroAccountEntry[] }
+	moneroListWallets: { params: {}; response: string[] }
+	moneroTransfer: { params: { address: string; amount: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
+	moneroGetTransferDetails: { params: { txid: string }; response: MoneroTransferDetails | null }
+	moneroGetFeeEstimate: { params: {}; response: MoneroFeeEstimate | null }
+}
+
 export type RPC = {
 	bun: {
-		requests: {
-			resetApp: { params: {}; response: boolean }
-			biometricCanAuth: { params: {}; response: boolean }
-			biometricAuth: { params: { reason: string }; response: boolean }
-			getSecret: { params: { service: string; name: string }; response: string | null }
-			setSecret: { params: { service: string; name: string; value: string }; response: void }
-			fetchTxHistory: { params: { address: string; chainid: string }; response: TxEntry[] }
-			fetchCachedTxHistory: { params: { address: string; chainid: string }; response: TxEntry[] }
-			syncTxHistory: { params: { address: string; chainid: string }; response: void }
-			flushTxCache: { params: {}; response: void }
-			setAutoSync: { params: { address: string; chainid: string } | null; response: void }
-			fetchTokenBalances: { params: { address: string; chainid: string }; response: TokenBalanceResult[] }
-			fetchTransactionDetails: { params: { hash: string; chainid: string; address?: string }; response: TransactionDetails | null }
-			openExternal: { params: { url: string }; response: void }
-			generateQrCode: { params: { text: string; size?: number }; response: string }
-			moneroBinaryStatus: { params: {}; response: MoneroBinaryStatus }
-			moneroDownloadBinary: { params: {}; response: void }
-			moneroStart: { params: { daemonAddress?: string }; response: MoneroWalletStatus }
-			moneroStop: { params: {}; response: void }
-			moneroCreateWallet: { params: { name: string; password: string }; response: { mnemonic: string; address: string } }
-			moneroRestoreWallet: { params: { name: string; password: string; mnemonic: string; restoreHeight?: number }; response: { address: string } }
-			moneroOpenWallet: { params: { name: string; password: string }; response: void }
-			moneroGetBalance: { params: {}; response: MoneroBalance }
-			moneroGetTransactions: { params: { accountIndex?: number }; response: MoneroTxEntry[] }
-			moneroWalletStatus: { params: {}; response: MoneroWalletStatus }
-			moneroGetAccounts: { params: {}; response: MoneroAccountEntry[] }
-			moneroListWallets: { params: {}; response: string[] }
-			moneroTransfer: { params: { address: string; amount: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
-			moneroGetTransferDetails: { params: { txid: string }; response: MoneroTransferDetails | null }
-			moneroGetFeeEstimate: { params: {}; response: MoneroFeeEstimate | null }
-			evmCreateWallet: { params: { name: string; phrase: string; passwordHash?: string }; response: { id: string; name: string; createdAt: string } }
-			evmListWallets: { params: {}; response: EvmWalletInfo[] }
-			evmGetSeed: { params: { vaultKey: string }; response: string }
-			evmDeleteWallet: { params: { id: string }; response: void }
-			fetchTokenPrices: { params: { symbols?: string[]; addresses?: { network: string; address: string }[] }; response: TokenPriceEntry[] }
-			fetchGasPrice: { params: { chainid: string }; response: string | null }
-		}
+		requests: GeneralRpcRequests & EvmRpcRequests & MoneroRpcRequests
 		messages: {}
 	}
 	webview: {
