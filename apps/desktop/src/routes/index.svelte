@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { evmWallet as wallet } from '$lib/states/evm-wallet.svelte.js'
+	import { moneroWallet } from '$lib/states/monero-wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import {
 		Card,
@@ -17,6 +18,7 @@
 		if (!initStarted) {
 			initStarted = true
 			w.init()
+			moneroWallet.init()
 		}
 	})
 </script>

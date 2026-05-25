@@ -1,5 +1,16 @@
 <script lang="ts">
 	import { moneroWallet } from '$lib/states/monero-wallet.svelte.js'
+	import { Button } from '$lib/components/ui/button/index.js'
+	import { Input } from '$lib/components/ui/input/index.js'
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle,
+	} from '$lib/components/ui/card/index.js'
+	import Loader from '$lib/components/loader.svelte'
+	import { navigate } from 'sv-router/generated'
 
 	const w = moneroWallet
 
@@ -15,7 +26,9 @@
 		<Card>
 			<CardHeader>
 				<CardTitle>Monero Settings</CardTitle>
-				<CardDescription>Server and wallet preferences</CardDescription>
+				<CardDescription>
+					Server and wallet preferences
+				</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<div class="flex flex-col gap-4">
@@ -24,7 +37,10 @@
 						<Button
 							variant="outline"
 							size="sm"
-							onclick={async () => { await w.stop(); await w.start() }}
+							onclick={async () => {
+								await w.stop()
+								await w.start()
+							}}
 							disabled={w.loading}>
 							{#if w.loading}
 								<Loader />
@@ -34,23 +50,43 @@
 					</div>
 					{#if w.biometricAvailable}
 						<div>
-							<p class="text-xs font-medium mb-2">Save wallet password with Touch ID</p>
-							<p class="text-xs text-muted-foreground mb-3">Enter your wallet password to enable biometric unlock</p>
+							<p class="text-xs font-medium mb-2">
+								Save wallet password with Touch ID
+							</p>
+							<p class="text-xs text-muted-foreground mb-3">
+								Enter your wallet password to enable biometric unlock
+							</p>
 							<div class="flex gap-2 items-end">
-								<Input type="password" placeholder="Wallet password" bind:value={moneroSettingsPw} />
-								<Button size="sm" onclick={async () => {
-									await w.moneroStorePassword(w.walletName, moneroSettingsPw)
-									moneroSettingsPw = ''
-									w.error = ''
-								}} disabled={!moneroSettingsPw || w.loading}>Save</Button>
+								<Input
+									type="password"
+									placeholder="Wallet password"
+									bind:value={moneroSettingsPw} />
+								<Button
+									size="sm"
+									onclick={async () => {
+										await w.moneroStorePassword(
+											w.walletName,
+											moneroSettingsPw,
+										)
+										moneroSettingsPw = ''
+										w.error = ''
+									}}
+									disabled={!moneroSettingsPw || w.loading}>
+									Save
+								</Button>
 							</div>
 						</div>
 					{:else}
-						<p class="text-xs text-muted-foreground">Biometric authentication not available on this device</p>
+						<p class="text-xs text-muted-foreground">
+							Biometric authentication not available on this device
+						</p>
 					{/if}
 
 					<div class="pt-2 border-t border-border">
-						<Button variant="outline" size="sm" onclick={() => navigate('/monero')}>
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() => navigate('/monero')}>
 							Back
 						</Button>
 					</div>

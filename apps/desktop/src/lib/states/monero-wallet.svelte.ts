@@ -1,4 +1,9 @@
-	import { electrobun, type MoneroTxEntry, type MoneroAccountEntry, type MoneroSendResult } from '$lib/electrobun'
+import {
+	electrobun,
+	type MoneroTxEntry,
+	type MoneroAccountEntry,
+	type MoneroSendResult,
+} from '$lib/electrobun'
 import { tryCatch } from '@koins/utils'
 
 export const moneroNetwork = {
@@ -13,7 +18,10 @@ export const moneroNetwork = {
 export const atomicToXmr = (atomic: string): string => {
 	const n = BigInt(atomic)
 	const whole = n / 10_000_000_000_000n
-	const frac = (n % 10_000_000_000_000n).toString().padStart(12, '0').replace(/0+$/, '')
+	const frac = (n % 10_000_000_000_000n)
+		.toString()
+		.padStart(12, '0')
+		.replace(/0+$/, '')
 	return frac ? `${whole}.${frac}` : `${whole}`
 }
 
@@ -52,7 +60,9 @@ export const MoneroWallet = () => {
 	const biometricAuth = async (): Promise<boolean> => {
 		if (!electrobun.rpc) return false
 		const [authed] = await tryCatch(
-			electrobun.rpc.request.biometricAuth({ reason: 'Unlock wallet' }),
+			electrobun.rpc.request.biometricAuth({
+				reason: 'Unlock wallet',
+			}),
 		)
 		return authed === true
 	}
@@ -81,17 +91,29 @@ export const MoneroWallet = () => {
 		accountType = null
 	}
 
-	const moneroGetStoredPassword = async (name: string): Promise<string | null> => {
+	const moneroGetStoredPassword = async (
+		name: string,
+	): Promise<string | null> => {
 		if (!electrobun.rpc) return null
 		const [raw] = await tryCatch(
-			electrobun.rpc.request.getSecret({ service: 'koins', name: `monero_pw_${name}` }),
+			electrobun.rpc.request.getSecret({
+				service: 'koins',
+				name: `monero_pw_${name}`,
+			}),
 		)
 		return raw ?? null
 	}
 
-	const moneroStorePassword = async (name: string, password: string) => {
+	const moneroStorePassword = async (
+		name: string,
+		password: string,
+	) => {
 		if (!electrobun.rpc) return
-		await electrobun.rpc.request.setSecret({ service: 'koins', name: `monero_pw_${name}`, value: password })
+		await electrobun.rpc.request.setSecret({
+			service: 'koins',
+			name: `monero_pw_${name}`,
+			value: password,
+		})
 	}
 
 	const fetchAccounts = async () => {
@@ -112,11 +134,17 @@ export const MoneroWallet = () => {
 		wallets = result ?? []
 	}
 
-	const openExistingWallet = async (name: string, password?: string) => {
+	const openExistingWallet = async (
+		name: string,
+		password?: string,
+	) => {
 		if (!electrobun.rpc) throw new Error('RPC not available')
-		const pw = password ?? await moneroGetStoredPassword(name)
+		const pw = password ?? (await moneroGetStoredPassword(name))
 		if (!pw) throw new Error('Password required')
-		await electrobun.rpc.request.moneroOpenWallet({ name, password: pw })
+		await electrobun.rpc.request.moneroOpenWallet({
+			name,
+			password: pw,
+		})
 		walletName = name
 		walletOpen = true
 		await refresh()
@@ -173,9 +201,16 @@ export const MoneroWallet = () => {
 		wallets = []
 	}
 
-	const createWallet = async (name: string, password: string, storePw?: boolean) => {
+	const createWallet = async (
+		name: string,
+		password: string,
+		storePw?: boolean,
+	) => {
 		if (!electrobun.rpc) throw new Error('RPC not available')
-		const result = await electrobun.rpc.request.moneroCreateWallet({ name, password })
+		const result = await electrobun.rpc.request.moneroCreateWallet({
+			name,
+			password,
+		})
 		walletName = name
 		walletOpen = true
 		address = result.address
@@ -184,10 +219,19 @@ export const MoneroWallet = () => {
 		return result
 	}
 
-	const restoreWallet = async (name: string, password: string, mnemonic: string, restoreHeight?: number, storePw?: boolean) => {
+	const restoreWallet = async (
+		name: string,
+		password: string,
+		mnemonic: string,
+		restoreHeight?: number,
+		storePw?: boolean,
+	) => {
 		if (!electrobun.rpc) throw new Error('RPC not available')
 		const result = await electrobun.rpc.request.moneroRestoreWallet({
-			name, password, mnemonic, restoreHeight,
+			name,
+			password,
+			mnemonic,
+			restoreHeight,
 		})
 		walletName = name
 		walletOpen = true
@@ -250,34 +294,90 @@ export const MoneroWallet = () => {
 	}
 
 	return {
-		get accountType() { return accountType },
-		get ready() { return ready },
-		get biometricAvailable() { return biometricAvailable },
-		get running() { return running },
-		get walletOpen() { return walletOpen },
-		get connected() { return connected },
-		get balAtomic() { return balAtomic },
-		get unlockedAtomic() { return unlockedAtomic },
-		get address() { return address },
-		get height() { return height },
-		get daemonHeight() { return daemonHeight },
-		get txs() { return txs },
-		get installed() { return installed },
-		get downloading() { return downloading },
-		get walletName() { return walletName },
-		get accounts() { return accounts },
-		get wallets() { return wallets },
-		get loading() { return loading },
-		get error() { return error },
-		get balance() { return atomicToXmr(balAtomic) },
-		get unlocked() { return atomicToXmr(unlockedAtomic) },
-		set error(v: string) { error = v },
-		set installed(v: boolean) { installed = v },
-		set downloading(v: boolean) { downloading = v },
-		set running(v: boolean) { running = v },
-		set connected(v: boolean) { connected = v },
-		get selectedAccountIndex() { return selectedAccountIndex },
-		set selectedAccountIndex(v: number) { selectedAccountIndex = v },
+		get accountType() {
+			return accountType
+		},
+		get ready() {
+			return ready
+		},
+		get biometricAvailable() {
+			return biometricAvailable
+		},
+		get running() {
+			return running
+		},
+		get walletOpen() {
+			return walletOpen
+		},
+		get connected() {
+			return connected
+		},
+		get balAtomic() {
+			return balAtomic
+		},
+		get unlockedAtomic() {
+			return unlockedAtomic
+		},
+		get address() {
+			return address
+		},
+		get height() {
+			return height
+		},
+		get daemonHeight() {
+			return daemonHeight
+		},
+		get txs() {
+			return txs
+		},
+		get installed() {
+			return installed
+		},
+		get downloading() {
+			return downloading
+		},
+		get walletName() {
+			return walletName
+		},
+		get accounts() {
+			return accounts
+		},
+		get wallets() {
+			return wallets
+		},
+		get loading() {
+			return loading
+		},
+		get error() {
+			return error
+		},
+		get balance() {
+			return atomicToXmr(balAtomic)
+		},
+		get unlocked() {
+			return atomicToXmr(unlockedAtomic)
+		},
+		set error(v: string) {
+			error = v
+		},
+		set installed(v: boolean) {
+			installed = v
+		},
+		set downloading(v: boolean) {
+			downloading = v
+		},
+		set running(v: boolean) {
+			running = v
+		},
+		set connected(v: boolean) {
+			connected = v
+		},
+		get selectedAccountIndex() {
+			return selectedAccountIndex
+		},
+		set selectedAccountIndex(v: number) {
+			selectedAccountIndex = v
+		},
 		init,
 		login,
 		logout,
