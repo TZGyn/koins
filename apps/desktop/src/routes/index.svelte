@@ -10,16 +10,13 @@
 		CardTitle,
 	} from '$lib/components/ui/card/index.js'
 	import { navigate } from 'sv-router/generated'
+	import { onMount } from 'svelte'
 
 	const w = wallet
 
-	let initStarted = false
-	$effect(() => {
-		if (!initStarted) {
-			initStarted = true
-			w.init()
-			moneroWallet.init()
-		}
+	onMount(() => {
+		w.init()
+		moneroWallet.init()
 	})
 </script>
 
@@ -46,7 +43,7 @@
 				<div class="flex flex-col gap-3">
 					<Button
 						onclick={async () => {
-							await w.login('multi')
+							await w.login()
 							navigate('/multicoin')
 						}}
 						class="w-full">
@@ -67,7 +64,7 @@
 					</Button>
 					<Button
 						onclick={async () => {
-							await w.login('monero')
+							await moneroWallet.login()
 							navigate('/monero')
 						}}
 						variant="outline"

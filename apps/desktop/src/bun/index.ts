@@ -77,7 +77,7 @@ ApplicationMenu.setApplicationMenu([
 const url = await getMainViewUrl()
 
 const moneroState = {
-	manager: null as MoneroWalletManager | null,
+	manager: null as MoneroWalletState | null,
 	downloading: false,
 }
 const syncState = {

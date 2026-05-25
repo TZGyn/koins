@@ -113,7 +113,11 @@ export const EvmWallet = () => {
 
 		electrobun.rpc.addMessageListener(
 			'transfersUpdate',
-			(payload: { chainid: string; address: string; count: number }) => {
+			(payload: {
+				chainid: string
+				address: string
+				count: number
+			}) => {
 				if (
 					payload.address === address &&
 					payload.chainid === net().chainid
@@ -151,21 +155,12 @@ export const EvmWallet = () => {
 		ready = true
 	}
 
-	const login = async (type: AccountType) => {
-		accountType = type
-		if (type === 'multi') {
-			if (seed) await switchNetwork(network)
-		} else if (type === 'monero') {
-			if (moneroWallet.installed && !moneroWallet.running) {
-				await moneroWallet.start()
-				await moneroWallet.checkStatus()
-			}
-			await moneroWallet.listWallets()
-		}
+	const login = async () => {
+		accountType = 'multi'
+		if (seed) await switchNetwork(network)
 	}
 
 	const logout = async () => {
-		await moneroWallet.stop()
 		accountType = null
 		clearWallet()
 	}
