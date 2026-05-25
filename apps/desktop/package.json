@@ -10,6 +10,7 @@
 		"build:dev": "bun run build:native && vite build && electrobun build",
 		"build:canary": "bun run build:native && vite build && electrobun build --env=canary",
 		"build:stable": "bun run build:native && vite build && electrobun build --env=stable",
+		"build:win": "vite build && electrobun build --env=stable",
 		"db:push": "bun x --bun drizzle-kit push",
 		"db:generate": "drizzle-kit generate",
 		"build:native": "swiftc -O -o src/bun/native/biometric-helper src/bun/native/biometric-helper.swift"
