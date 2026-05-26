@@ -26,9 +26,12 @@
 	import Fingerprint from '@lucide/svelte/icons/fingerprint'
 	import SettingsIcon from '@lucide/svelte/icons/settings'
 	import Copy from '@lucide/svelte/icons/copy'
+	import QrCodeIcon from '@lucide/svelte/icons/qr-code'
 	import Loader from '$lib/components/loader.svelte'
 	import QrCode from '$lib/components/qr.svelte'
 	import { navigate } from 'sv-router/generated'
+	import { CopyButton } from '$lib/components/ui/copy-button'
+	import { onMount } from 'svelte'
 
 	const w = moneroWallet
 
@@ -44,6 +47,9 @@
 		const end = addr.slice(-6)
 		return { start, mid, end }
 	}
+
+	let qrDialogOpen = $state(false)
+	let subQrDialogOpen = $state<string | null>(null)
 
 	let moneroWalletName = $state('')
 	let moneroWalletPass = $state('')
@@ -99,6 +105,10 @@
 				await w.login()
 			})
 		}
+	})
+
+	onMount(() => {
+		w.refresh()
 	})
 </script>
 
@@ -330,7 +340,6 @@
 					<CardContent>
 						<div class="mb-4 space-y-1">
 							<div class="flex items-start gap-3">
-								<QrCode text={w.address} size={128} />
 								<div class="min-w-0 flex-1 space-y-1">
 									<p class="font-medium text-xs">Address</p>
 									<p class="font-mono text-xs break-all">
@@ -343,6 +352,35 @@
 											{a.end}
 										</span>
 									</p>
+									<div class="flex gap-1.5 mt-1">
+										<Dialog.Root bind:open={qrDialogOpen}>
+											<Dialog.Trigger>
+												<Button
+													variant="outline"
+													size="icon-sm"
+													class="text-muted-foreground"
+													aria-label="Show QR code">
+													<QrCodeIcon size={16} />
+												</Button>
+											</Dialog.Trigger>
+											<Dialog.Content>
+												<div
+													class="flex flex-col items-center gap-3 py-4">
+													<QrCode text={w.address} size={256} />
+													<p
+														class="font-mono text-xs break-all text-center max-w-64">
+														{w.address}
+													</p>
+												</div>
+											</Dialog.Content>
+										</Dialog.Root>
+										<CopyButton
+											text={w.address}
+											variant="outline"
+											size="icon-sm"
+											class="text-muted-foreground">
+										</CopyButton>
+									</div>
 								</div>
 							</div>
 							<p class="mt-2 font-medium text-xs">Balance</p>
@@ -630,12 +668,44 @@
 									<span class="text-muted-foreground/40">...</span>
 									<span class="text-primary-foreground">{a.end}</span>
 								</p>
-								<button
-									onclick={() =>
-										copyToClipboard(account.primaryAddress)}
-									class="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-									<Copy size={12} /> Copy address
-								</button>
+								<div class="flex gap-1.5 mt-1">
+									<Dialog.Root
+										open={subQrDialogOpen === account.primaryAddress}
+										onopenchange={(v) => {
+											subQrDialogOpen = v
+												? account.primaryAddress
+												: null
+										}}>
+										<Dialog.Trigger>
+											<Button
+												variant="outline"
+												size="icon-xs"
+												class="text-muted-foreground"
+												aria-label="Show QR code">
+												<QrCodeIcon />
+											</Button>
+										</Dialog.Trigger>
+										<Dialog.Content>
+											<div
+												class="flex flex-col items-center gap-3 py-4">
+												<QrCode
+													text={account.primaryAddress}
+													size={256} />
+												<p
+													class="font-mono text-xs break-all text-center max-w-64">
+													{account.primaryAddress}
+												</p>
+											</div>
+										</Dialog.Content>
+									</Dialog.Root>
+
+									<CopyButton
+										text={account.primaryAddress}
+										variant="outline"
+										size="icon-xs"
+										class="text-muted-foreground">
+									</CopyButton>
+								</div>
 								{#if account.subaddresses.length > 1}
 									<div class="space-y-1 border-t border-border pt-2">
 										<p class="text-xs text-muted-foreground mb-1">
@@ -646,7 +716,6 @@
 											<div
 												class="rounded-sm bg-background px-2 py-1.5 text-xs">
 												<div class="flex items-start gap-2">
-													<QrCode text={sub.address} size={64} />
 													<div class="min-w-0 flex-1">
 														<div
 															class="flex items-center justify-between">
@@ -673,12 +742,43 @@
 																{a.end}
 															</span>
 														</p>
-														<button
-															onclick={() =>
-																copyToClipboard(sub.address)}
-															class="mt-1 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-															<Copy size={12} /> Copy
-														</button>
+														<div class="flex gap-1.5 mt-1">
+															<Dialog.Root
+																open={subQrDialogOpen === sub.address}
+																onopenchange={(v) => {
+																	subQrDialogOpen = v
+																		? sub.address
+																		: null
+																}}>
+																<Dialog.Trigger>
+																	<Button
+																		variant="outline"
+																		size="icon-xs"
+																		class="text-muted-foreground"
+																		aria-label="Show QR code">
+																		<QrCodeIcon />
+																	</Button>
+																</Dialog.Trigger>
+																<Dialog.Content>
+																	<div
+																		class="flex flex-col items-center gap-3 py-4">
+																		<QrCode
+																			text={sub.address}
+																			size={256} />
+																		<p
+																			class="font-mono text-xs break-all text-center max-w-64">
+																			{sub.address}
+																		</p>
+																	</div>
+																</Dialog.Content>
+															</Dialog.Root>
+															<CopyButton
+																text={sub.address}
+																variant="outline"
+																size="icon-xs"
+																class="text-muted-foreground">
+															</CopyButton>
+														</div>
 													</div>
 												</div>
 											</div>
