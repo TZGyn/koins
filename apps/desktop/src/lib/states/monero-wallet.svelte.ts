@@ -293,6 +293,21 @@ export const MoneroWallet = () => {
 		return result
 	}
 
+	const sendAll = async (
+		address: string,
+		priority?: number,
+		accountIndex?: number,
+	): Promise<MoneroSendResult> => {
+		if (!electrobun.rpc) throw new Error('RPC not available')
+		const result = await electrobun.rpc.request.moneroSweepAll({
+			address,
+			priority,
+			accountIndex,
+		})
+		await refresh()
+		return result
+	}
+
 	return {
 		get accountType() {
 			return accountType
@@ -396,6 +411,7 @@ export const MoneroWallet = () => {
 		openWallet,
 		refresh,
 		send,
+		sendAll,
 	}
 }
 

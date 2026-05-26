@@ -423,6 +423,33 @@ export async function getDaemonHeight(
 	}
 }
 
+export async function sweepAll(
+	state: MoneroWalletState,
+	address: string,
+	priority: number = 0,
+	accountIndex: number = 0,
+): Promise<{ txHash: string; fee: string; amount: string }> {
+	if (!state.wallet) throw new Error('Wallet RPC not started')
+	console.log(
+		`[monero] sweepAll: ${address} priority=${priority} account=${accountIndex}`,
+	)
+	const result = await rawRpc(state, 'sweep_all', {
+		address,
+		priority,
+		account_index: accountIndex,
+		get_tx_keys: true,
+		get_tx_hex: false,
+		get_tx_metadata: false,
+	})
+	const txHash = result.tx_hash_list?.[0] ?? ''
+	const fee = result.fee_list?.[0]?.toString() ?? '0'
+	const amount = result.amount_list?.[0]?.toString() ?? '0'
+	console.log(
+		`[monero] sweepAll result: tx_hash=${txHash} fee=${fee} amount=${amount}`,
+	)
+	return { txHash, fee, amount }
+}
+
 export async function transfer(
 	state: MoneroWalletState,
 	address: string,

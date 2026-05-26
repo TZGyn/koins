@@ -18,11 +18,18 @@
 	import ArrowUp from '@lucide/svelte/icons/arrow-up'
 	import Fingerprint from '@lucide/svelte/icons/fingerprint'
 	import SettingsIcon from '@lucide/svelte/icons/settings'
+	import Copy from '@lucide/svelte/icons/copy'
 	import Loader from '$lib/components/loader.svelte'
 	import QrCode from '$lib/components/qr.svelte'
 	import { navigate } from 'sv-router/generated'
 
 	const w = moneroWallet
+
+	const copyToClipboard = async (text: string) => {
+		try {
+			await navigator.clipboard.writeText(text)
+		} catch {}
+	}
 
 	let moneroWalletName = $state('')
 	let moneroWalletPass = $state('')
@@ -464,6 +471,11 @@
 									class="mb-2 font-mono text-xs text-muted-foreground break-all">
 									{account.primaryAddress}
 								</p>
+								<button
+									onclick={() => copyToClipboard(account.primaryAddress)}
+									class="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+									<Copy size={12} /> Copy address
+								</button>
 								{#if account.subaddresses.length > 1}
 									<div class="space-y-1 border-t border-border pt-2">
 										<p class="text-xs text-muted-foreground mb-1">
@@ -490,6 +502,11 @@
 															class="font-mono text-muted-foreground/50 truncate mt-0.5">
 															{sub.address}
 														</p>
+														<button
+															onclick={() => copyToClipboard(sub.address)}
+															class="mt-1 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+															<Copy size={12} /> Copy
+														</button>
 													</div>
 												</div>
 											</div>

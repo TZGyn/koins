@@ -179,6 +179,7 @@ export type MoneroRpcRequests = {
 	moneroGetAccounts: { params: {}; response: MoneroAccountEntry[] }
 	moneroListWallets: { params: {}; response: string[] }
 	moneroTransfer: { params: { address: string; amount: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
+	moneroSweepAll: { params: { address: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
 	moneroGetTransferDetails: { params: { txid: string }; response: MoneroTransferDetails | null }
 	moneroGetFeeEstimate: { params: {}; response: MoneroFeeEstimate | null }
 }

@@ -24,6 +24,7 @@
 
 	let recipient = $state('')
 	let amountXmr = $state('')
+	let sendAll = $state(false)
 	let priority = $state('0')
 	let accountIndex = $state(
 		w.accounts.length > 0 ? String(w.accounts[0].index) : '0',
@@ -57,8 +58,8 @@
 	const canSend = $derived(
 		recipient.startsWith('4') &&
 			recipient.length >= 95 &&
-			amountAtomic > 0n &&
-			!exceedsBalance &&
+			(sendAll || amountAtomic > 0n) &&
+			(sendAll || !exceedsBalance) &&
 			!sending,
 	)
 
@@ -67,15 +68,22 @@
 		sendError = ''
 		sentResult = null
 		try {
-			const result = await w.send(
-				recipient,
-				amountAtomic.toString(),
-				parseInt(priority),
-				parseInt(accountIndex),
-			)
+			const result = sendAll
+				? await w.sendAll(
+						recipient,
+						parseInt(priority),
+						parseInt(accountIndex),
+					)
+				: await w.send(
+						recipient,
+						amountAtomic.toString(),
+						parseInt(priority),
+						parseInt(accountIndex),
+					)
 			sentResult = { txHash: result.txHash, fee: result.fee }
 			recipient = ''
 			amountXmr = ''
+			sendAll = false
 		} catch (e) {
 			sendError = e instanceof Error ? e.message : 'Send failed'
 		} finally {
@@ -148,13 +156,21 @@
 							step="0.000000000001"
 							min="0"
 							placeholder="0.0"
-							bind:value={amountXmr} />
+							bind:value={amountXmr}
+							disabled={sendAll} />
 						<span
 							class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
 							XMR
 						</span>
 					</div>
-					{#if exceedsBalance}
+					<label class="flex items-center gap-2 text-xs">
+						<input
+							type="checkbox"
+							bind:checked={sendAll}
+							class="h-3.5 w-3.5" />
+						Send all unlocked XMR (fee deducted automatically)
+					</label>
+					{#if exceedsBalance && !sendAll}
 						<p class="text-xs text-red-500">
 							Amount exceeds unlocked balance
 						</p>

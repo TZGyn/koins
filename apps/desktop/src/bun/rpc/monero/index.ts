@@ -17,6 +17,7 @@ import {
 	getDaemonHeight as walletGetDaemonHeight,
 	getFeeEstimate as walletGetFeeEstimate,
 	transfer as walletTransfer,
+	sweepAll as walletSweepAll,
 	isWalletOpen,
 	isConnected,
 } from '../../lib/monero'
@@ -229,6 +230,30 @@ export function createMoneroHandlers(state: {
 				accountIndex ?? 0,
 			)
 			console.log('[rpc] moneroTransfer complete:', result.txHash)
+			return result
+		},
+		moneroSweepAll: async ({
+			address,
+			priority,
+			accountIndex,
+		}: {
+			address: string
+			priority?: number
+			accountIndex?: number
+		}) => {
+			console.log('[rpc] moneroSweepAll:', {
+				address,
+				priority,
+			})
+			if (!state.manager)
+				throw new Error('Monero wallet RPC not started')
+			const result = await walletSweepAll(
+				state.manager,
+				address,
+				priority ?? 0,
+				accountIndex ?? 0,
+			)
+			console.log('[rpc] moneroSweepAll complete:', result.txHash)
 			return result
 		},
 		moneroGetTransferDetails: async ({ txid }: { txid: string }) => {

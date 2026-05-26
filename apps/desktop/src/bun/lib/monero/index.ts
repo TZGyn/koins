@@ -16,6 +16,7 @@ export {
 	getFeeEstimate,
 	getDaemonHeight,
 	transfer,
+	sweepAll,
 	isWalletOpen,
 	isConnected,
 	listWallets,
