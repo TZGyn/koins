@@ -308,6 +308,23 @@ export const MoneroWallet = () => {
 		return result
 	}
 
+	const createAccount = async (label?: string) => {
+		if (!electrobun.rpc) throw new Error('RPC not available')
+		const result = await electrobun.rpc.request.moneroCreateAccount({ label })
+		await refresh()
+		return result
+	}
+
+	const createSubaddress = async (accountIndex: number, label?: string) => {
+		if (!electrobun.rpc) throw new Error('RPC not available')
+		const result = await electrobun.rpc.request.moneroCreateSubaddress({
+			accountIndex,
+			label,
+		})
+		await refresh()
+		return result
+	}
+
 	return {
 		get accountType() {
 			return accountType
@@ -412,6 +429,8 @@ export const MoneroWallet = () => {
 		refresh,
 		send,
 		sendAll,
+		createAccount,
+		createSubaddress,
 	}
 }
 

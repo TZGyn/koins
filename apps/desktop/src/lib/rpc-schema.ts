@@ -180,6 +180,8 @@ export type MoneroRpcRequests = {
 	moneroListWallets: { params: {}; response: string[] }
 	moneroTransfer: { params: { address: string; amount: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
 	moneroSweepAll: { params: { address: string; priority?: number; accountIndex?: number }; response: MoneroSendResult }
+	moneroCreateAccount: { params: { label?: string }; response: { index: number; address: string } }
+	moneroCreateSubaddress: { params: { accountIndex: number; label?: string }; response: { index: number; address: string } }
 	moneroGetTransferDetails: { params: { txid: string }; response: MoneroTransferDetails | null }
 	moneroGetFeeEstimate: { params: {}; response: MoneroFeeEstimate | null }
 }

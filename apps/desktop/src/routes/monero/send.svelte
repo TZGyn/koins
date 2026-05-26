@@ -56,7 +56,7 @@
 		amountAtomic > BigInt(unlockedAtomic),
 	)
 	const canSend = $derived(
-		recipient.startsWith('4') &&
+		(recipient.startsWith('4') || recipient.startsWith('8')) &&
 			recipient.length >= 95 &&
 			(sendAll || amountAtomic > 0n) &&
 			(sendAll || !exceedsBalance) &&

@@ -259,6 +259,32 @@ export async function getAddress(
 	return address
 }
 
+export async function createAccount(
+	state: MoneroWalletState,
+	label?: string,
+): Promise<{ index: number; address: string }> {
+	if (!state.wallet) throw new Error('Wallet RPC not started')
+	const result = await rawRpc(state, 'create_account', {
+		label: label ?? '',
+	})
+	console.log(`[monero] created account ${result.account_index}: ${result.address}`)
+	return { index: result.account_index, address: result.address }
+}
+
+export async function createSubaddress(
+	state: MoneroWalletState,
+	accountIndex: number,
+	label?: string,
+): Promise<{ index: number; address: string }> {
+	if (!state.wallet) throw new Error('Wallet RPC not started')
+	const result = await rawRpc(state, 'create_address', {
+		account_index: accountIndex,
+		label: label ?? '',
+	})
+	console.log(`[monero] created subaddress ${result.address_index} for account ${accountIndex}: ${result.address}`)
+	return { index: result.address_index, address: result.address }
+}
+
 export async function getAccounts(
 	state: MoneroWalletState,
 ): Promise<any[]> {

@@ -17,6 +17,8 @@ export {
 	getDaemonHeight,
 	transfer,
 	sweepAll,
+	createAccount,
+	createSubaddress,
 	isWalletOpen,
 	isConnected,
 	listWallets,
