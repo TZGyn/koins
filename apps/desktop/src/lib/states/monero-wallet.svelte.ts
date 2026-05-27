@@ -25,10 +25,8 @@ export const atomicToXmr = (atomic: string): string => {
 	return frac ? `${whole}.${frac}` : `${whole}`
 }
 
-export type AccountType = 'multi' | 'monero'
-
 export const MoneroWallet = () => {
-	let accountType = $state<AccountType | null>(null)
+	let accountType = $state<'monero' | null>(null)
 	let ready = $state(false)
 	let biometricAvailable = $state(false)
 	let running = $state(false)
@@ -310,17 +308,23 @@ export const MoneroWallet = () => {
 
 	const createAccount = async (label?: string) => {
 		if (!electrobun.rpc) throw new Error('RPC not available')
-		const result = await electrobun.rpc.request.moneroCreateAccount({ label })
+		const result = await electrobun.rpc.request.moneroCreateAccount({
+			label,
+		})
 		await refresh()
 		return result
 	}
 
-	const createSubaddress = async (accountIndex: number, label?: string) => {
+	const createSubaddress = async (
+		accountIndex: number,
+		label?: string,
+	) => {
 		if (!electrobun.rpc) throw new Error('RPC not available')
-		const result = await electrobun.rpc.request.moneroCreateSubaddress({
-			accountIndex,
-			label,
-		})
+		const result =
+			await electrobun.rpc.request.moneroCreateSubaddress({
+				accountIndex,
+				label,
+			})
 		await refresh()
 		return result
 	}
