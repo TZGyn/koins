@@ -10,7 +10,13 @@ import { syncTransactionHistory } from '../../lib/sync'
 import { eq, and } from 'drizzle-orm'
 import { db } from '../../lib/db'
 import { getClient } from '../../lib/viem'
-import { formatGwei, parseEther, parseUnits, encodeFunctionData, createWalletClient } from 'viem'
+import {
+	formatGwei,
+	parseEther,
+	parseUnits,
+	encodeFunctionData,
+	createWalletClient,
+} from 'viem'
 import { mnemonicToAccount } from 'viem/accounts'
 import { getChain } from '../../lib/viem/getChain'
 import { getChainID } from '../../lib/alchemy/network'
@@ -517,15 +523,13 @@ export function createEvmHandlers(
 				name: vaultKey,
 				value: phrase,
 			})
-			await db
-				.insert(evmWallets)
-				.values({
-					id,
-					name,
-					passwordHash: passwordHash ?? null,
-					vaultKey,
-					createdAt: new Date().toISOString(),
-				})
+			await db.insert(evmWallets).values({
+				id,
+				name,
+				passwordHash: passwordHash ?? null,
+				vaultKey,
+				createdAt: new Date().toISOString(),
+			})
 			console.log('[rpc] evmCreateWallet complete:', id)
 			return { id, name, createdAt: new Date().toISOString() }
 		},
@@ -590,6 +594,7 @@ export function createEvmHandlers(
 				name: 'alchemy_key',
 			})
 			if (!key) throw new Error('API key not set')
+			const _amount = String(amount)
 			const account = mnemonicToAccount(seed)
 			const id = getChainID(chainid)
 			if (!id) throw new Error('Unsupported chain')
@@ -614,7 +619,10 @@ export function createEvmHandlers(
 				const data = encodeFunctionData({
 					abi: erc20Abi,
 					functionName: 'transfer',
-					args: [to as `0x${string}`, parseUnits(amount, tokenDecimals)],
+					args: [
+						to as `0x${string}`,
+						parseUnits(_amount, tokenDecimals),
+					],
 				})
 				const hash = await walletClient.sendTransaction({
 					to: contractAddress as `0x${string}`,
@@ -625,7 +633,7 @@ export function createEvmHandlers(
 			}
 			const hash = await walletClient.sendTransaction({
 				to: to as `0x${string}`,
-				value: parseEther(amount),
+				value: parseEther(_amount),
 			})
 			return hash
 		},

@@ -76,7 +76,7 @@
 		try {
 			const txHash = await w.send(
 				recipient,
-				amount,
+				String(amount),
 				selectedToken.contractAddress || undefined,
 				selectedToken.decimals,
 			)

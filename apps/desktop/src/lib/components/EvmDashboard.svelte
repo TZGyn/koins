@@ -6,7 +6,9 @@
 	} from '$lib/states/evm-wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
-	import { navigate } from 'sv-router/generated'
+import { generateMnemonic } from 'viem/accounts'
+import { english } from 'viem/accounts'
+import { navigate } from 'sv-router/generated'
 	import {
 		Card,
 		CardContent,
@@ -172,14 +174,14 @@
 			<CardTitle>
 				{#if showCreateForm}
 					{@const cur = w.currentWallet}
-					{cur ? `Add Another Wallet` : `Import Wallet`}
+					{cur ? `Add Another Wallet` : `Import / Create Wallet`}
 				{:else}
-					Import Wallet
+					Import / Create Wallet
 				{/if}
 			</CardTitle>
 			<CardDescription>
 				Name your wallet and enter your seed phrase to save it
-				securely
+				securely, or generate a new wallet
 			</CardDescription>
 		</CardHeader>
 		<CardContent>
@@ -192,6 +194,14 @@
 				<Textarea
 					placeholder="Enter your 12 or 24 word seed phrase"
 					bind:value={inputSeed} />
+				<Button
+					variant="outline"
+					onclick={() => {
+						inputSeed = generateMnemonic(english)
+					}}
+					class="w-full mt-1">
+					Generate Random Seed
+				</Button>
 				<input
 					type="password"
 					placeholder="Set a password (optional)"
