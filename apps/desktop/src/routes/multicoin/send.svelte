@@ -139,12 +139,22 @@
 
 				<div class="space-y-1.5">
 					<label class="text-xs font-medium">Amount ({selectedToken.symbol})</label>
-					<Input
-						type="number"
-						step="0.000000000000000001"
-						min="0"
-						placeholder="0.0"
-						bind:value={amount} />
+					<div class="flex gap-2 items-start">
+						<div class="flex-1">
+							<Input
+								type="number"
+								step="0.000000000000000001"
+								min="0"
+								placeholder="0.0"
+								bind:value={amount} />
+						</div>
+						<Button
+							variant="outline"
+							onclick={() => { amount = selectedToken.balance }}
+							class="mt-0 shrink-0">
+							All
+						</Button>
+					</div>
 					{#if exceedsBalance}
 						<p class="text-xs text-red-500">
 							Amount exceeds balance
