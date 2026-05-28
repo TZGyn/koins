@@ -117,6 +117,7 @@ export type TransactionDetails = {
 
 export type TokenBalanceResult = {
 	symbol: string
+	decimals: number
 	balance: string
 	contractAddress: string
 	logo?: string
@@ -163,6 +164,7 @@ export type EvmRpcRequests = {
 	evmListWallets: { params: {}; response: EvmWalletInfo[] }
 	evmGetSeed: { params: { vaultKey: string }; response: string }
 	evmDeleteWallet: { params: { id: string }; response: void }
+	evmSendTransfer: { params: { seed: string; to: string; amount: string; chainid: string; contractAddress?: string; tokenDecimals?: number }; response: string }
 }
 
 export type MoneroRpcRequests = {

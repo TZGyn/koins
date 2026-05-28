@@ -489,6 +489,11 @@
 				<div class="flex gap-2 flex-wrap">
 					<Button
 						variant="outline"
+						onclick={() => navigate('/multicoin/send')}>
+						Send
+					</Button>
+					<Button
+						variant="outline"
 						onclick={() => navigate('/settings')}>
 						<SettingsIcon size={16} />
 					</Button>

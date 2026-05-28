@@ -10,7 +10,11 @@ import { syncTransactionHistory } from '../../lib/sync'
 import { eq, and } from 'drizzle-orm'
 import { db } from '../../lib/db'
 import { getClient } from '../../lib/viem'
-import { formatGwei } from 'viem'
+import { formatGwei, parseEther, parseUnits, encodeFunctionData, createWalletClient } from 'viem'
+import { mnemonicToAccount } from 'viem/accounts'
+import { getChain } from '../../lib/viem/getChain'
+import { getChainID } from '../../lib/alchemy/network'
+import { alchemyTransport } from '@alchemy/common'
 import { sqlite } from '../../lib/sqlite'
 import { txHistory, evmWallets } from '../../lib/db/schema'
 import type {
@@ -565,6 +569,65 @@ export function createEvmHandlers(
 			])
 			db.delete(evmWallets).where(eq(evmWallets.id, id)).run()
 			console.log('[rpc] evmDeleteWallet complete')
+		},
+		evmSendTransfer: async ({
+			seed,
+			to,
+			amount,
+			chainid,
+			contractAddress,
+			tokenDecimals,
+		}: {
+			seed: string
+			to: string
+			amount: string
+			chainid: string
+			contractAddress?: string
+			tokenDecimals?: number
+		}) => {
+			const key = await Bun.secrets.get({
+				service: 'koins',
+				name: 'alchemy_key',
+			})
+			if (!key) throw new Error('API key not set')
+			const account = mnemonicToAccount(seed)
+			const id = getChainID(chainid)
+			if (!id) throw new Error('Unsupported chain')
+			const chain = getChain(id)
+			const walletClient = createWalletClient({
+				account,
+				chain,
+				transport: alchemyTransport({ apiKey: key }),
+			})
+			if (contractAddress && tokenDecimals !== undefined) {
+				const erc20Abi = [
+					{
+						name: 'transfer',
+						type: 'function',
+						inputs: [
+							{ name: 'to', type: 'address' },
+							{ name: 'amount', type: 'uint256' },
+						],
+						outputs: [{ name: '', type: 'bool' }],
+					},
+				] as const
+				const data = encodeFunctionData({
+					abi: erc20Abi,
+					functionName: 'transfer',
+					args: [to as `0x${string}`, parseUnits(amount, tokenDecimals)],
+				})
+				const hash = await walletClient.sendTransaction({
+					to: contractAddress as `0x${string}`,
+					data,
+					value: 0n,
+				})
+				return hash
+			}
+			const hash = await walletClient.sendTransaction({
+				to: to as `0x${string}`,
+				value: parseEther(amount),
+			})
+			return hash
 		},
 	}
 }

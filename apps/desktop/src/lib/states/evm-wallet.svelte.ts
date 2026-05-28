@@ -39,6 +39,7 @@ export type NetworkId = (typeof networks)[number]['id']
 
 export type TokenBalance = {
 	symbol: string
+	decimals: number
 	balance: string
 	contractAddress: string
 	logo?: string
@@ -406,6 +407,25 @@ export const EvmWallet = () => {
 		transactions = txs ?? []
 	}
 
+	const send = async (
+		to: string,
+		amount: string,
+		contractAddress?: string,
+		tokenDecimals?: number,
+	) => {
+		if (!electrobun.rpc || !seed) throw new Error('Wallet not unlocked')
+		const hash = await electrobun.rpc.request.evmSendTransfer({
+			seed,
+			to,
+			amount,
+			chainid: net().chainid,
+			contractAddress,
+			tokenDecimals,
+		})
+		await refresh()
+		return hash
+	}
+
 	const lock = () => {
 		clearWallet()
 	}
@@ -531,6 +551,7 @@ export const EvmWallet = () => {
 		unlockWallet,
 		deleteWallet,
 		clearSelection,
+		send,
 		syncTxHistory,
 		setAutoSync,
 		flushTxCache,

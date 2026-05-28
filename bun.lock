@@ -13,7 +13,8 @@
     "apps/desktop": {
       "name": "koins",
       "dependencies": {
-        "@alchemy/wallet-apis": "^5.0.0-beta.28",
+        "@alchemy/common": "^5.0.0",
+        "@alchemy/wallet-apis": "^5.0.0",
         "@koins/utils": "workspace:*",
         "drizzle-orm": "^1.0.0-beta.22",
         "electrobun": "^1.18.1",
@@ -72,11 +73,11 @@
   "packages": {
     "@adraffy/ens-normalize": ["@adraffy/ens-normalize@1.11.1", "", {}, "sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ=="],
 
-    "@alchemy/common": ["@alchemy/common@5.0.0-beta.28", "", { "dependencies": { "zod": "^3.23.0" }, "peerDependencies": { "viem": "^2.45.0" } }, "sha512-VyqYyfYPuRTXpu8X+fFIL2JU9iS4ZnOl9wXmDS0s/3H3Y5wYJzz/dZ1Vo7u33B9L+aWPkSMGHVJun1AZdNEacA=="],
+    "@alchemy/common": ["@alchemy/common@5.0.2", "", { "dependencies": { "zod": "^3.23.0" }, "peerDependencies": { "viem": "^2.45.0" } }, "sha512-ORFjRhAJ07BUjhNqjgx2b4khWu0sNNEnnTXj3DT7UKFxZvK79cpyoE/6E0D17OWiz40y+uk6eRtkWog5bNWVpg=="],
 
-    "@alchemy/wallet-api-types": ["@alchemy/wallet-api-types@0.1.0-alpha.27", "", { "dependencies": { "@alchemy/common": "5.0.0-beta.4", "deep-equal": "^2.2.3", "ox": "^0.6.12", "typebox": "^1.0.81", "viem": "^2.45.0" }, "peerDependencies": { "typescript": "^5.8.2" } }, "sha512-d6DaAASwa3k7vpXEbG96hUiV+41CBGfTRNiXsjG5UgX4tox3Z0Dlf9QC+SBkyzc1/PiJx9fCuQxYNfrELqPxkw=="],
+    "@alchemy/wallet-api-types": ["@alchemy/wallet-api-types@0.2.0-alpha.3", "", { "dependencies": { "@alchemy/common": "5.0.0-beta.32", "deep-equal": "^2.2.3", "ox": "^0.6.12", "viem": "^2.45.0", "zod": "^4.4.1" }, "peerDependencies": { "typescript": "^5.8.2" } }, "sha512-VaNj8gzGfPveo8i6l3aX4YovQezu4oDuAqyAy2k1LqsLf18pn2+iw3cV/WiFTwMrdQXLtnDYzS9D6NdkgEokzw=="],
 
-    "@alchemy/wallet-apis": ["@alchemy/wallet-apis@5.0.0-beta.28", "", { "dependencies": { "@alchemy/common": "5.0.0-beta.28", "@alchemy/wallet-api-types": "0.1.0-alpha.27", "deep-equal": "^2.2.3", "ox": "^0.11.1", "typebox": "1.0.81" }, "peerDependencies": { "viem": "^2.45.0" } }, "sha512-ySr+ASorGI7bxPZ1fPH/CpszyXEVbUBLEfqWPzLmQiC5gvC186HppBFYPUrVUfVDU7izSNrkX7r64e99ZcppgA=="],
+    "@alchemy/wallet-apis": ["@alchemy/wallet-apis@5.0.2", "", { "dependencies": { "@alchemy/common": "5.0.2", "@alchemy/wallet-api-types": "0.2.0-alpha.3", "deep-equal": "^2.2.3", "ox": "^0.11.1", "zod": "^4.4.1" }, "peerDependencies": { "@solana/kit": ">=6.0.0", "@solana/web3.js": "^1.95.0", "viem": "^2.45.0" }, "optionalPeers": ["@solana/kit", "@solana/web3.js"] }, "sha512-HmwOAvpe248LOQaJ3Der2owT82l0OwxBfVbwiXd7WXlJ+k04L1ooFKo5AjiWXMaoJQzpIkh37n66SUmyVVd4PA=="],
 
     "@ark/schema": ["@ark/schema@0.56.0", "", { "dependencies": { "@ark/util": "0.56.0" } }, "sha512-ECg3hox/6Z/nLajxXqNhgPtNdHWC9zNsDyskwO28WinoFEnWow4IsERNz9AnXRhTZJnYIlAJ4uGn3nlLk65vZA=="],
 
@@ -1050,11 +1051,9 @@
 
     "@alchemy/common/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
-    "@alchemy/wallet-api-types/@alchemy/common": ["@alchemy/common@5.0.0-beta.4", "", { "peerDependencies": { "viem": "^2.45.0" } }, "sha512-A9IGGG6QA+UEtf+mFiuNfuruS0wTlSsXx2jIWXeeJ18VYMEFmPFFpPP2tWfGLKpxyuA1QQqkHSQqs6dBpG1EZw=="],
+    "@alchemy/wallet-api-types/@alchemy/common": ["@alchemy/common@5.0.0-beta.32", "", { "dependencies": { "zod": "^3.23.0" }, "peerDependencies": { "viem": "^2.45.0" } }, "sha512-gVUrMhnhdD8UUipd70XUbmxm3PX3OhHK1TSi3ODBGOH3Jd9SoH0+mFagSn62pwi5XFPCOg3UGGXj9bmLKFlGhA=="],
 
     "@alchemy/wallet-api-types/ox": ["ox@0.6.12", "", { "dependencies": { "@adraffy/ens-normalize": "^1.10.1", "@noble/curves": "^1.6.0", "@noble/hashes": "^1.5.0", "@scure/bip32": "^1.5.0", "@scure/bip39": "^1.4.0", "abitype": "^1.0.6", "eventemitter3": "5.0.1" }, "peerDependencies": { "typescript": ">=5.4.0" }, "optionalPeers": ["typescript"] }, "sha512-78hziRGLj0qTDa0UW4+ynv9tW2Cp1vmCfGokL8D7kiSDh6Y0LAfHL+HaDN4l2a9jcrOG3fexTDtLNtDNkEwLtg=="],
-
-    "@alchemy/wallet-apis/typebox": ["typebox@1.0.81", "", {}, "sha512-bCslZUmZESHhBn4kHDghzH2oo3qu8m2W89xDLxQHv/aPvY4i81Nd1jvijlBp9wSpsVytDSfSoosbiBAjgsNb2Q=="],
 
     "@tailwindcss/oxide-wasm32-wasi/@emnapi/core": ["@emnapi/core@1.9.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.0", "tslib": "^2.4.0" }, "bundled": true }, "sha512-mukuNALVsoix/w1BJwFzwXBN/dHeejQtuVzcDsfOEsdpCumXb/E9j8w11h5S54tT1xhifGfbbSm/ICrObRb3KA=="],
 
@@ -1117,6 +1116,8 @@
     "viem/ox": ["ox@0.14.20", "", { "dependencies": { "@adraffy/ens-normalize": "^1.11.0", "@noble/ciphers": "^1.3.0", "@noble/curves": "1.9.1", "@noble/hashes": "^1.8.0", "@scure/bip32": "^1.7.0", "@scure/bip39": "^1.6.0", "abitype": "^1.2.3", "eventemitter3": "5.0.1" }, "peerDependencies": { "typescript": ">=5.4.0" }, "optionalPeers": ["typescript"] }, "sha512-rby38C3nDn8eQkf29Zgw4hkCZJ64Qqi0zRPWL8ENUQ7JVuoITqrVtwWQgM/He19SCMUEc7hS/Sjw0jIOSLJhOw=="],
 
     "vite/rolldown": ["rolldown@1.0.0-rc.18", "", { "dependencies": { "@oxc-project/types": "=0.128.0", "@rolldown/pluginutils": "1.0.0-rc.18" }, "optionalDependencies": { "@rolldown/binding-android-arm64": "1.0.0-rc.18", "@rolldown/binding-darwin-arm64": "1.0.0-rc.18", "@rolldown/binding-darwin-x64": "1.0.0-rc.18", "@rolldown/binding-freebsd-x64": "1.0.0-rc.18", "@rolldown/binding-linux-arm-gnueabihf": "1.0.0-rc.18", "@rolldown/binding-linux-arm64-gnu": "1.0.0-rc.18", "@rolldown/binding-linux-arm64-musl": "1.0.0-rc.18", "@rolldown/binding-linux-ppc64-gnu": "1.0.0-rc.18", "@rolldown/binding-linux-s390x-gnu": "1.0.0-rc.18", "@rolldown/binding-linux-x64-gnu": "1.0.0-rc.18", "@rolldown/binding-linux-x64-musl": "1.0.0-rc.18", "@rolldown/binding-openharmony-arm64": "1.0.0-rc.18", "@rolldown/binding-wasm32-wasi": "1.0.0-rc.18", "@rolldown/binding-win32-arm64-msvc": "1.0.0-rc.18", "@rolldown/binding-win32-x64-msvc": "1.0.0-rc.18" }, "bin": { "rolldown": "bin/cli.mjs" } }, "sha512-phmyKBpuBdRYDf4hgyynGAYn/rDDe+iZXKVJ7WX5b1zQzpLkP5oJRPGsfJuHdzPMlyyEO/4sPW6yfSx2gf7lVg=="],
+
+    "@alchemy/wallet-api-types/@alchemy/common/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "@types/bun/bun-types/@types/node": ["@types/node@22.19.15", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg=="],
 

@@ -16,7 +16,8 @@
 		"build:native": "swiftc -O -o src/bun/native/biometric-helper src/bun/native/biometric-helper.swift"
 	},
 	"dependencies": {
-		"@alchemy/wallet-apis": "^5.0.0-beta.28",
+		"@alchemy/common": "^5.0.0",
+		"@alchemy/wallet-apis": "^5.0.0",
 		"@koins/utils": "workspace:*",
 		"drizzle-orm": "^1.0.0-beta.22",
 		"electrobun": "^1.18.1",
