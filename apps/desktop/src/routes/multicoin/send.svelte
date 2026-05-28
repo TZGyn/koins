@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { evmWallet as wallet } from '$lib/states/evm-wallet.svelte.js'
+	import { electrobun } from '$lib/electrobun.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Input } from '$lib/components/ui/input/index.js'
 	import {
@@ -16,6 +17,7 @@
 		CardDescription,
 	} from '$lib/components/ui/card/index.js'
 	import { navigate } from 'sv-router/generated'
+	import { parseEther, formatEther, parseGwei } from 'viem'
 
 	const w = wallet
 
@@ -49,6 +51,7 @@
 	let sending = $state(false)
 	let sentResult = $state<{ txHash: string } | null>(null)
 	let sendError = $state('')
+	let sendAll = $state(false)
 
 	const selectedToken = $derived(
 		tokens.find((t) => t.symbol === selectedSymbol) ?? tokens[0],
@@ -63,10 +66,8 @@
 	const canSend = $derived(
 		recipient.length === 42 &&
 			recipient.startsWith('0x') &&
-			amount !== '' &&
-			parseFloat(amount) > 0 &&
-			!exceedsBalance &&
-			!sending,
+			!sending &&
+			(sendAll || (amount !== '' && parseFloat(amount) > 0)),
 	)
 
 	const handleSend = async () => {
@@ -74,15 +75,29 @@
 		sendError = ''
 		sentResult = null
 		try {
+			const isNative = !selectedToken.contractAddress
+			let finalAmount = String(amount)
+			if (sendAll && isNative) {
+				const gasPriceGwei = await electrobun.rpc?.request.fetchGasPrice({ chainid: w.chainid })
+				if (!gasPriceGwei) throw new Error('Could not fetch gas price')
+				const gasWei = parseGwei(gasPriceGwei) * 21000n
+				const balanceWei = parseEther(selectedToken.balance)
+				const sendWei = balanceWei - gasWei
+				if (sendWei <= 0n) throw new Error('Balance too low to cover gas')
+				finalAmount = formatEther(sendWei)
+			} else if (sendAll) {
+				finalAmount = String(selectedToken.balance)
+			}
 			const txHash = await w.send(
 				recipient,
-				String(amount),
+				finalAmount,
 				selectedToken.contractAddress || undefined,
 				selectedToken.decimals,
 			)
 			sentResult = { txHash }
 			recipient = ''
 			amount = ''
+			sendAll = false
 		} catch (e) {
 			sendError = e instanceof Error ? e.message : 'Send failed'
 		} finally {
@@ -161,6 +176,18 @@
 						</p>
 					{/if}
 				</div>
+
+				{#if !selectedToken.contractAddress}
+					<label class="flex items-center gap-2 cursor-pointer">
+						<input
+							type="checkbox"
+							bind:checked={sendAll}
+							class="h-3.5 w-3.5" />
+						<span class="text-xs text-muted-foreground">
+							Send all (deducts estimated gas fee)
+						</span>
+					</label>
+				{/if}
 
 				<Button type="submit" disabled={!canSend} class="w-full">
 					{sending ? 'Sending...' : 'Send'}
