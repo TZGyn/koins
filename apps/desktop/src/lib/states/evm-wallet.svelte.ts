@@ -525,6 +525,7 @@ export const EvmWallet = () => {
 		resetApp,
 		unlockWithBiometrics,
 		unlockWithPassword,
+		hashPassword,
 		selectWallet,
 		selectAndUnlockWallet,
 		unlockWallet,

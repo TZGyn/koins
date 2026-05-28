@@ -59,6 +59,9 @@
 				to get started
 			</p>
 		{:else if w.accountType === 'monero'}
+			<a href="/" class="text-xs text-muted-foreground underline mb-1 inline-block">
+				← Back to home
+			</a>
 			{#if w.downloading}
 				<Card>
 					<CardContent>

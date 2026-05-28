@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { evmWallet as wallet } from '$lib/states/evm-wallet.svelte.js'
+	import { electrobun } from '$lib/electrobun.js'
 	import { Button } from '$lib/components/ui/button/index.js'
+	import { Input } from '$lib/components/ui/input/index.js'
 	import {
 		Card,
 		CardContent,
@@ -10,6 +12,8 @@
 	} from '$lib/components/ui/card/index.js'
 	import { navigate } from 'sv-router/generated'
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left'
+	import Eye from '@lucide/svelte/icons/eye'
+	import Fingerprint from '@lucide/svelte/icons/fingerprint'
 	import Trash2 from '@lucide/svelte/icons/trash-2'
 	import WalletIcon from '@lucide/svelte/icons/wallet'
 
@@ -18,6 +22,9 @@
 	let resetting = $state(false)
 	let deletingWalletId = $state<string | null>(null)
 	let flushing = $state(false)
+	let seedRevealed = $state(false)
+	let seedPassword = $state('')
+	let seedError = $state('')
 
 	async function handleReset() {
 		resetting = true
@@ -82,6 +89,61 @@
 							</div>
 						{/each}
 					</div>
+				</CardContent>
+			</Card>
+		{/if}
+		{#if w.seed}
+			<Card>
+				<CardHeader>
+					<CardTitle>Seed Phrase</CardTitle>
+					<CardDescription>Reveal your wallet recovery phrase</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{#if seedRevealed}
+						<div class="rounded-md border border-destructive/50 bg-destructive/5 p-3">
+							<p class="text-xs text-destructive font-medium mb-2">
+								Never share your seed phrase. Anyone with it can access your funds.
+							</p>
+							<p class="font-mono text-xs break-all">{w.seed}</p>
+						</div>
+						<Button variant="outline" size="sm" class="mt-3" onclick={() => { seedRevealed = false; seedPassword = ''; seedError = '' }}>
+							<Eye size={14} /> Hide
+						</Button>
+					{:else}
+						<div class="space-y-2">
+							{#if w.currentPasswordHash}
+								<div class="flex gap-2 items-end">
+									<Input type="password" placeholder="Enter password" bind:value={seedPassword} />
+									<Button onclick={async () => {
+										seedError = ''
+										const { salt, hash } = JSON.parse(w.currentPasswordHash!)
+										const { hash: check } = await w.hashPassword(seedPassword, salt)
+										if (check === hash) {
+											seedRevealed = true
+										} else {
+											seedError = 'Incorrect password'
+										}
+										seedPassword = ''
+									}}>Reveal</Button>
+								</div>
+							{/if}
+							{#if w.biometricAvailable}
+								<Button variant="outline" class="w-full" onclick={async () => {
+									seedError = ''
+									const ok = await electrobun.rpc?.request.biometricAuth({ reason: 'Reveal seed phrase' })
+									if (ok) seedRevealed = true
+								}}>
+									<Fingerprint size={14} /> Reveal with Touch ID
+								</Button>
+							{/if}
+							{#if !w.currentPasswordHash && !w.biometricAvailable}
+								<Button onclick={() => (seedRevealed = true)}>Reveal Seed Phrase</Button>
+							{/if}
+							{#if seedError}
+								<p class="text-xs text-destructive">{seedError}</p>
+							{/if}
+						</div>
+					{/if}
 				</CardContent>
 			</Card>
 		{/if}
