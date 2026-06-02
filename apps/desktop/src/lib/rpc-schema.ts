@@ -186,6 +186,7 @@ export type MoneroRpcRequests = {
 	moneroCreateSubaddress: { params: { accountIndex: number; label?: string }; response: { index: number; address: string } }
 	moneroGetTransferDetails: { params: { txid: string }; response: MoneroTransferDetails | null }
 	moneroGetFeeEstimate: { params: {}; response: MoneroFeeEstimate | null }
+	fetchMoneroPrice: { params: {}; response: { usd: string } | null }
 }
 
 export type RPC = {

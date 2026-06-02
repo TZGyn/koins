@@ -309,5 +309,20 @@ export function createMoneroHandlers(state: {
 				return null
 			}
 		},
+		fetchMoneroPrice: async () => {
+			try {
+				const res = await fetch(
+					'https://api.coingecko.com/api/v3/simple/price?ids=monero&vs_currencies=usd',
+					{ signal: AbortSignal.timeout(10000) },
+				)
+				if (!res.ok) return null
+				const data = await res.json()
+				if (!data?.monero?.usd) return null
+				return { usd: String(data.monero.usd) }
+			} catch (error) {
+				console.log('[monero][price] error:', error)
+				return null
+			}
+		},
 	}
 }

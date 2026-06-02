@@ -17,8 +17,8 @@ export const moneroNetwork = {
 
 export const atomicToXmr = (atomic: string): string => {
 	const n = BigInt(atomic)
-	const whole = n / 10_000_000_000_000n
-	const frac = (n % 10_000_000_000_000n)
+	const whole = n / 1_000_000_000_000n
+	const frac = (n % 1_000_000_000_000n)
 		.toString()
 		.padStart(12, '0')
 		.replace(/0+$/, '')

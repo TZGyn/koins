@@ -30,6 +30,10 @@
 	import { navigate, route } from 'sv-router/generated'
 	import { CopyButton } from '$lib/components/ui/copy-button'
 	import { onMount } from 'svelte'
+	import { LineChart } from 'layerchart'
+	import { scaleUtc } from 'd3-scale'
+	import { curveLinear } from 'd3-shape'
+	import * as Chart from '$lib/components/ui/chart/index.js'
 
 	const w = moneroWallet
 
@@ -48,6 +52,31 @@
 		fees: string[]
 		estimatedFee: string
 	} | null>(null)
+	let moneroPrice = $state<{ usd: string } | null>(null)
+
+	const balanceHistory = $derived.by(() => {
+		const sorted = [...w.txs].reverse()
+		if (sorted.length === 0) return []
+		const points: { date: Date; balance: number }[] = []
+		let cum = 0n
+		for (const tx of sorted) {
+			const amt = BigInt(tx.amount)
+			if (tx.direction === 'in') cum += amt
+			else cum -= amt
+			points.push({
+				date: new Date(Number(tx.timestamp) * 1000),
+				balance: parseFloat(atomicToXmr(cum.toString())),
+			})
+		}
+		points.push({
+			date: new Date(),
+			balance: parseFloat(atomicToXmr(cum.toString())),
+		})
+		return points
+	})
+
+	$inspect(balanceHistory)
+
 	let accountDialogOpen = $state(false)
 	let accountLabel = $state('')
 	let subaddressDialogOpen = $state(false)
@@ -61,7 +90,12 @@
 
 	$effect(() => {
 		if (w.walletOpen && !autoRefreshTimer) {
-			autoRefreshTimer = setInterval(() => w.refresh(), 30000)
+			autoRefreshTimer = setInterval(() => {
+				w.refresh()
+				electrobun.rpc?.request
+					.fetchMoneroPrice({})
+					.then((p) => (moneroPrice = p))
+			}, 30000)
 		} else if (!w.walletOpen && autoRefreshTimer) {
 			clearInterval(autoRefreshTimer)
 			autoRefreshTimer = undefined
@@ -87,6 +121,9 @@
 			navigate('/monero')
 		}
 		w.refresh()
+		electrobun.rpc?.request
+			.fetchMoneroPrice({})
+			.then((p) => (moneroPrice = p))
 	})
 </script>
 
@@ -163,7 +200,19 @@
 						</div>
 					</div>
 					<p class="mt-2 font-medium text-xs">Balance</p>
-					<p class="font-mono text-lg">{w.balance} XMR</p>
+					<div class="flex items-baseline gap-2">
+						<p class="font-mono text-lg">{w.balance} XMR</p>
+						{#if moneroPrice}
+							<p class="font-mono text-sm text-muted-foreground">
+								≈ ${(
+									parseFloat(w.balance) * parseFloat(moneroPrice.usd)
+								).toLocaleString(undefined, {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2,
+								})}
+							</p>
+						{/if}
+					</div>
 					{#if w.unlockedAtomic !== w.balAtomic}
 						<p class="text-xs text-muted-foreground">
 							Unlocked: {w.unlocked} XMR
@@ -300,6 +349,69 @@
 				{/if}
 			</CardContent>
 		</Card>
+
+		{#if balanceHistory.length > 1}
+			<Card>
+				<CardHeader>
+					<CardTitle>Balance</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Chart.Container
+						config={{
+							balance: { label: 'XMR', color: 'var(--chart-1)' },
+						}}>
+						<LineChart
+							data={balanceHistory}
+							x="date"
+							xScale={scaleUtc()}
+							// axis="x"
+							points
+							series={[
+								{
+									key: 'balance',
+									label: 'XMR',
+									color: 'var(--chart-1)',
+								},
+							]}
+							yDomain={[
+								balanceHistory.reduce((a, b) =>
+									a.balance < b.balance ? a : b,
+								).balance,
+								balanceHistory.reduce((a, b) =>
+									a.balance > b.balance ? a : b,
+								).balance,
+							]}
+							props={{
+								spline: {
+									curve: curveLinear,
+									motion: 'tween',
+									strokeWidth: 2,
+								},
+								yAxis: {},
+								xAxis: {
+									format: (v: Date) =>
+										v.toLocaleDateString('en-US', {
+											month: 'short',
+											day: 'numeric',
+											// hour: '2-digit',
+										}),
+								},
+								highlight: { points: { r: 4 } },
+							}}>
+							{#snippet tooltip()}
+								<Chart.Tooltip
+									labelFormatter={(value: Date) => {
+										return value.toLocaleDateString()
+									}}
+									valueFormatter={(value: Number) => {
+										return value.toString().slice(0, 8)
+									}} />
+							{/snippet}
+						</LineChart>
+					</Chart.Container>
+				</CardContent>
+			</Card>
+		{/if}
 
 		<!-- Monero accounts & subaddresses -->
 		<Card>
