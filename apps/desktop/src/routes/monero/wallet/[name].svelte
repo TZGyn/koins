@@ -53,6 +53,21 @@
 		estimatedFee: string
 	} | null>(null)
 	let moneroPrice = $state<{ usd: string } | null>(null)
+	let selectedRange = $state<'1D' | '1W' | '1M' | '1Y' | 'ALL'>('ALL')
+
+	const rangeCutoff = $derived(
+		selectedRange === 'ALL'
+			? 0
+			: Date.now() -
+					(
+						{
+							'1D': 86400000,
+							'1W': 604800000,
+							'1M': 2592000000,
+							'1Y': 31536000000,
+						} as const
+					)[selectedRange],
+	)
 
 	const balanceHistory = $derived.by(() => {
 		const sorted = [...w.txs].reverse()
@@ -75,7 +90,11 @@
 		return points
 	})
 
-	$inspect(balanceHistory)
+	const chartData = $derived(
+		selectedRange === 'ALL'
+			? balanceHistory
+			: balanceHistory.filter((p) => p.date.getTime() >= rangeCutoff),
+	)
 
 	let accountDialogOpen = $state(false)
 	let accountLabel = $state('')
@@ -353,62 +372,81 @@
 		{#if balanceHistory.length > 1}
 			<Card>
 				<CardHeader>
-					<CardTitle>Balance</CardTitle>
+					<div class="flex items-center justify-between">
+						<CardTitle>Balance</CardTitle>
+						<div class="flex gap-1">
+							{#each ['1D', '1W', '1M', '1Y', 'ALL'] as const as range}
+								<button
+									onclick={() => (selectedRange = range)}
+									class="rounded px-1.5 py-0.5 text-xs font-medium transition-colors {selectedRange ===
+									range
+										? 'bg-primary text-primary-foreground'
+										: 'text-muted-foreground hover:text-foreground'}">
+									{range}
+								</button>
+							{/each}
+						</div>
+					</div>
 				</CardHeader>
 				<CardContent>
-					<Chart.Container
-						config={{
-							balance: { label: 'XMR', color: 'var(--chart-1)' },
-						}}>
-						<LineChart
-							data={balanceHistory}
-							x="date"
-							xScale={scaleUtc()}
-							// axis="x"
-							points
-							series={[
-								{
-									key: 'balance',
-									label: 'XMR',
-									color: 'var(--chart-1)',
-								},
-							]}
-							yDomain={[
-								balanceHistory.reduce((a, b) =>
-									a.balance < b.balance ? a : b,
-								).balance,
-								balanceHistory.reduce((a, b) =>
-									a.balance > b.balance ? a : b,
-								).balance,
-							]}
-							props={{
-								spline: {
-									curve: curveLinear,
-									motion: 'tween',
-									strokeWidth: 2,
-								},
-								yAxis: {},
-								xAxis: {
-									format: (v: Date) =>
-										v.toLocaleDateString('en-US', {
-											month: 'short',
-											day: 'numeric',
-											// hour: '2-digit',
-										}),
-								},
-								highlight: { points: { r: 4 } },
+					{#if chartData.length > 1}
+						<Chart.Container
+							config={{
+								balance: { label: 'XMR', color: 'var(--chart-1)' },
 							}}>
-							{#snippet tooltip()}
-								<Chart.Tooltip
-									labelFormatter={(value: Date) => {
-										return value.toLocaleDateString()
-									}}
-									valueFormatter={(value: Number) => {
-										return value.toString().slice(0, 8)
-									}} />
-							{/snippet}
-						</LineChart>
-					</Chart.Container>
+							<LineChart
+								data={chartData}
+								x="date"
+								xScale={scaleUtc()}
+								axis="x"
+								points
+								series={[
+									{
+										key: 'balance',
+										label: 'XMR',
+										color: 'var(--chart-1)',
+									},
+								]}
+								yDomain={[
+									chartData.reduce((a, b) =>
+										a.balance < b.balance ? a : b,
+									).balance,
+									chartData.reduce((a, b) =>
+										a.balance > b.balance ? a : b,
+									).balance,
+								]}
+								props={{
+									spline: {
+										curve: curveLinear,
+										motion: 'tween',
+										strokeWidth: 2,
+									},
+									yAxis: {},
+									xAxis: {
+										format: (v: Date) =>
+											v.toLocaleDateString('en-US', {
+												month: 'short',
+												day: 'numeric',
+											}),
+									},
+									highlight: { points: { r: 4 } },
+								}}>
+								{#snippet tooltip()}
+									<Chart.Tooltip
+										labelFormatter={(value: Date) => {
+											return value.toLocaleDateString()
+										}}
+										valueFormatter={(value: Number) => {
+											return value.toString().slice(0, 8)
+										}} />
+								{/snippet}
+							</LineChart>
+						</Chart.Container>
+					{:else}
+						<p class="text-center text-sm text-muted-foreground">
+							No transactions in this time range.
+						</p>
+					{/if}
 				</CardContent>
 			</Card>
 		{/if}
