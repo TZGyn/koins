@@ -148,6 +148,7 @@ export type GeneralRpcRequests = {
 	setSecret: { params: { service: string; name: string; value: string }; response: void }
 	openExternal: { params: { url: string }; response: void }
 	generateQrCode: { params: { text: string; size?: number }; response: string }
+	logToFile: { params: { message: string }; response: void }
 }
 
 export type EvmRpcRequests = {

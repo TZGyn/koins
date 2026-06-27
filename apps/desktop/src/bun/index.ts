@@ -9,6 +9,7 @@ import {
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import { db } from './lib/db'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { getENV } from './lib/get-env'
 import { createEvmHandlers } from './rpc/evm'
 import { createMoneroHandlers } from './rpc/monero'
@@ -17,15 +18,22 @@ import { canPromptTouchID, promptTouchID } from './lib/biometric'
 import { sqlite } from './lib/sqlite'
 import { evmWallets } from './lib/db/schema'
 import type { RPC } from '../lib/rpc-schema'
+import { log, logError } from './lib/logger'
 
 const env = getENV()
 
-console.log(env)
+log(`env: ${JSON.stringify(env)}`)
 
-if (env.env === 'prod') {
-	migrate(db, {
-		migrationsFolder: join(PATHS.RESOURCES_FOLDER, 'app', 'drizzle'),
-	})
+if (env.env === 'stable') {
+	try {
+		log('running migrations...')
+		migrate(db, {
+			migrationsFolder: join(PATHS.RESOURCES_FOLDER, 'app', 'drizzle'),
+		})
+		log('migrations complete')
+	} catch (e) {
+		logError('migration failed', e)
+	}
 }
 
 const DEV_SERVER_PORT = 5173
@@ -33,19 +41,17 @@ const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`
 
 async function getMainViewUrl(): Promise<string> {
 	const channel = await Updater.localInfo.channel()
+	log(`channel from Updater: ${channel}`)
 	if (channel === 'dev') {
 		try {
 			await fetch(DEV_SERVER_URL, { method: 'HEAD' })
-			console.log(
-				`HMR enabled: Using Vite dev server at ${DEV_SERVER_URL}`,
-			)
+			log(`HMR enabled: Using Vite dev server at ${DEV_SERVER_URL}`)
 			return DEV_SERVER_URL
 		} catch {
-			console.log(
-				"Vite dev server not running. Run 'bun run dev:hmr' for HMR support.",
-			)
+			log("Vite dev server not running, falling back to bundled view")
 		}
 	}
+	log('using bundled view')
 	return 'views://mainview/index.html'
 }
 
@@ -75,6 +81,12 @@ ApplicationMenu.setApplicationMenu([
 ])
 
 const url = await getMainViewUrl()
+
+log(`view URL: ${url}`)
+const viewsRoot = join(PATHS.RESOURCES_FOLDER, 'app', 'views')
+log(`viewsRoot: ${viewsRoot}`)
+log(`viewsRoot exists: ${existsSync(viewsRoot)}`)
+log(`index.html exists: ${existsSync(join(viewsRoot, 'mainview', 'index.html'))}`)
 
 const moneroState = {
 	manager: null as MoneroWalletState | null,
@@ -159,14 +171,19 @@ rpc.setRequestHandler({
 			margin: 1,
 		})
 	},
+	logToFile: async ({ message }) => {
+		log(message)
+	},
 	...createEvmHandlers(rpc, syncState),
 	...createMoneroHandlers(moneroState),
 })
 
+log('creating BrowserWindow...')
 const win = new BrowserWindow({
 	title: 'Koins',
 	url,
 	rpc,
+	viewsRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'views'),
 	frame: {
 		width: 900,
 		height: 700,
@@ -174,5 +191,6 @@ const win = new BrowserWindow({
 		y: 200,
 	},
 })
+log('BrowserWindow created')
 
-console.log('Koins app started!')
+log('Koins app started!')

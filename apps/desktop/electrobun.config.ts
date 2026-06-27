@@ -11,6 +11,7 @@ export default {
 		copy: {
 			'dist/index.html': 'views/mainview/index.html',
 			'dist/assets': 'views/mainview/assets',
+			'dist/icons': 'views/mainview/icons',
 			'drizzle': 'drizzle',
 			'src/bun/native/biometric-helper': 'native/biometric-helper',
 		},

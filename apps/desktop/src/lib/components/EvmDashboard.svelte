@@ -6,9 +6,9 @@
 	} from '$lib/states/evm-wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
-import { generateMnemonic } from 'viem/accounts'
-import { english } from 'viem/accounts'
-import { navigate } from 'sv-router/generated'
+	import { generateMnemonic } from 'viem/accounts'
+	import { english } from 'viem/accounts'
+	import { navigate } from 'sv-router/generated'
 	import {
 		Card,
 		CardContent,
@@ -30,6 +30,12 @@ import { navigate } from 'sv-router/generated'
 	import * as Dialog from '$lib/components/ui/dialog/index.js'
 	import QRCode from 'qrcode'
 	import Loader from './loader.svelte'
+	import { LineChart } from 'layerchart'
+	import { scaleUtc } from 'd3-scale'
+	import { curveLinear } from 'd3-shape'
+	import * as Chart from '$lib/components/ui/chart/index.js'
+	import { formatEther, parseEther } from 'viem'
+	import { frontendLog, frontendLogError } from '$lib/electrobun.js'
 
 	let { networkId }: { networkId: NetworkId } = $props()
 
@@ -161,6 +167,57 @@ import { navigate } from 'sv-router/generated'
 			})
 		}
 	})
+
+	function isNative(tx: TxEntry): boolean {
+		return !tx.contractAddress
+	}
+
+	const balanceHistory = $derived.by(() => {
+		const native = w.transactions.filter(isNative)
+		const sorted = [...native].reverse()
+		if (sorted.length === 0) return []
+		let cum = 0n
+		const addr = w.address.toLowerCase()
+		const points: { date: Date; balance: number }[] = []
+		for (const tx of sorted) {
+			console.log(tx.value)
+			const val = parseEther(tx.value)
+			if (tx.from.toLowerCase() === addr) cum -= val
+			else cum += val
+			points.push({
+				date: new Date(Number(tx.timeStamp) * 1000),
+				balance: Number(formatEther(cum)),
+			})
+		}
+		const cur = Number(w.balance)
+		const offset = cur - Number(formatEther(cum))
+		for (const p of points) p.balance += offset
+		return points
+	})
+
+	$inspect(balanceHistory)
+
+	let selectedRange = $state<'1D' | '1W' | '1M' | '1Y' | 'ALL'>('ALL')
+
+	const rangeCutoff = $derived(
+		selectedRange === 'ALL'
+			? 0
+			: Date.now() -
+					(
+						{
+							'1D': 86400000,
+							'1W': 604800000,
+							'1M': 2592000000,
+							'1Y': 31536000000,
+						} as const
+					)[selectedRange],
+	)
+
+	const chartData = $derived(
+		selectedRange === 'ALL'
+			? balanceHistory
+			: balanceHistory.filter((p) => p.date.getTime() >= rangeCutoff),
+	)
 </script>
 
 {#if !w.ready}
@@ -437,12 +494,23 @@ import { navigate } from 'sv-router/generated'
 							</p>
 						{/if}
 						{#if gasPrice}
-							{@const gasNative = Number(gasPrice) * 21000 / 1e9}
+							{@const gasNative = (Number(gasPrice) * 21000) / 1e9}
 							<p class="font-mono text-xs text-muted-foreground mt-1">
-								Gas: {Number(gasPrice).toFixed(1)} Gwei
-								({gasNative.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 })} {w.symbol})
+								Gas: {Number(gasPrice).toFixed(1)} Gwei ({gasNative.toLocaleString(
+									undefined,
+									{
+										minimumFractionDigits: 6,
+										maximumFractionDigits: 6,
+									},
+								)}
+								{w.symbol})
 								{#if nativePrice}
-									${(gasNative * Number(nativePrice.value)).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+									${(
+										gasNative * Number(nativePrice.value)
+									).toLocaleString(undefined, {
+										minimumFractionDigits: 4,
+										maximumFractionDigits: 4,
+									})}
 								{/if}
 							</p>
 						{/if}
@@ -518,6 +586,88 @@ import { navigate } from 'sv-router/generated'
 				</div>
 			</CardContent>
 		</Card>
+
+		{#if balanceHistory.length > 1}
+			<Card>
+				<CardHeader>
+					<div class="flex items-center justify-between">
+						<CardTitle>Balance</CardTitle>
+						<div class="flex gap-1">
+							{#each ['1D', '1W', '1M', '1Y', 'ALL'] as const as range}
+								<button
+									onclick={() => (selectedRange = range)}
+									class="rounded px-1.5 py-0.5 text-xs font-medium transition-colors {selectedRange ===
+									range
+										? 'bg-primary text-primary-foreground'
+										: 'text-muted-foreground hover:text-foreground'}">
+									{range}
+								</button>
+							{/each}
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent>
+					{#if chartData.length > 1}
+						<Chart.Container
+							config={{
+								balance: { label: w.symbol, color: 'var(--chart-1)' },
+							}}>
+							<LineChart
+								data={chartData}
+								x="date"
+								xScale={scaleUtc()}
+								axis="x"
+								points
+								series={[
+									{
+										key: 'balance',
+										label: w.symbol,
+										color: 'var(--chart-1)',
+									},
+								]}
+								yDomain={[
+									chartData.reduce((a, b) =>
+										a.balance < b.balance ? a : b,
+									).balance,
+									chartData.reduce((a, b) =>
+										a.balance > b.balance ? a : b,
+									).balance,
+								]}
+								props={{
+									spline: {
+										curve: curveLinear,
+										motion: 'tween',
+										strokeWidth: 2,
+									},
+									yAxis: {},
+									xAxis: {
+										format: (v: Date) =>
+											v.toLocaleDateString('en-US', {
+												month: 'short',
+												day: 'numeric',
+											}),
+									},
+									highlight: { points: { r: 4 } },
+								}}>
+								{#snippet tooltip()}
+									<Chart.Tooltip
+										labelFormatter={(value: Date) => {
+											return value.toLocaleDateString()
+										}}
+										valueFormatter={(value: Number) => {
+											return Number(value).toFixed(6)
+										}} />
+								{/snippet}
+							</LineChart>
+						</Chart.Container>
+					{:else}
+						<p class="text-center text-sm text-muted-foreground">
+							No transactions in this time range.
+						</p>
+					{/if}
+				</CardContent>
+			</Card>
+		{/if}
 
 		<Card>
 			<CardHeader>
