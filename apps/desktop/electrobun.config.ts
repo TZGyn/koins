@@ -12,7 +12,6 @@ export default {
 			'dist/index.html': 'views/mainview/index.html',
 			'dist/assets': 'views/mainview/assets',
 			'dist/icons': 'views/mainview/icons',
-			'drizzle': 'drizzle',
 			'src/bun/native/biometric-helper': 'native/biometric-helper',
 		},
 		// Ignore Vite output in watch mode — HMR handles view rebuilds separately

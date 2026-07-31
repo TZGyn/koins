@@ -1,72 +1,36 @@
-import { mnemonicToAccount } from 'viem/accounts'
-import { createPublicClient, http, formatEther } from 'viem'
 import {
 	electrobun,
-	type TxEntry,
-	type EvmWalletInfo,
+	type XrpTxEntry,
+	type XrpWalletInfo,
 } from '$lib/electrobun'
 import { tryCatch } from '@koins/utils'
-import { moneroWallet } from './monero-wallet.svelte.js'
 
-export const networks = [
-	{
-		id: 'bsc',
-		name: 'BNB Smart Chain',
-		rpc: 'https://bsc-dataseed.binance.org',
-		symbol: 'BNB',
-		chainid: '56',
-		explorerUrl: 'https://bscscan.com/tx/',
-	},
-	{
-		id: 'polygon',
-		name: 'Polygon',
-		rpc: 'https://polygon-bor.publicnode.com',
-		symbol: 'POL',
-		chainid: '137',
-		explorerUrl: 'https://polygonscan.com/tx/',
-	},
-	{
-		id: 'eth',
-		name: 'Ethereum',
-		rpc: 'https://ethereum-rpc.publicnode.com',
-		symbol: 'ETH',
-		chainid: '1',
-		explorerUrl: 'https://etherscan.io/tx/',
-	},
-] as const
+export const xrpNetwork = {
+	id: 'xrp',
+	name: 'XRP Ledger',
+	symbol: 'XRP',
+	explorerUrl: 'https://xrpscan.com/tx/',
+	explorerAddressUrl: 'https://xrpscan.com/account/',
+} as const
 
-export type NetworkId = (typeof networks)[number]['id']
-
-export type TokenBalance = {
-	symbol: string
-	decimals: number
-	balance: string
-	contractAddress: string
-	logo?: string
-}
-
-export type AccountType = 'multi' | 'monero'
-
-export const EvmWallet = () => {
-	let accountType = $state<AccountType | null>(null)
+export const XrpWallet = () => {
+	let accountType = $state<'xrp' | null>(null)
 	let ready = $state(false)
 	let biometricAvailable = $state(false)
 	let seed = $state('')
 	let address = $state('')
 	let balance = $state('0')
-	let tokenBalances = $state<TokenBalance[]>([])
-	let network = $state<NetworkId>('eth')
-	let apiKey = $state('')
-	let transactions = $state<TxEntry[]>([])
+	let funded = $state(true)
+	let price = $state<string | null>(null)
+	let fee = $state<string | null>(null)
+	let transactions = $state<XrpTxEntry[]>([])
 	let loadingBalance = $state(false)
 	let loadingTransactions = $state(false)
 	let loading = $state(false)
 	let error = $state('')
-	let wallets = $state<EvmWalletInfo[]>([])
+	let wallets = $state<XrpWalletInfo[]>([])
 	let currentWalletId = $state<string | null>(null)
 	let currentPasswordHash = $state<string | null>(null)
-
-	const net = () => networks.find((n) => n.id === network)!
 
 	async function hashPassword(
 		password: string,
@@ -111,25 +75,8 @@ export const EvmWallet = () => {
 
 	const init = async () => {
 		if (!electrobun.rpc) return
-
-		electrobun.rpc.addMessageListener(
-			'transfersUpdate',
-			(payload: {
-				chainid: string
-				address: string
-				count: number
-			}) => {
-				if (
-					payload.address === address &&
-					payload.chainid === net().chainid
-				) {
-					fetchTxHistory()
-				}
-			},
-		)
-
 		const [walletList] = await tryCatch(
-			electrobun.rpc.request.evmListWallets({}),
+			electrobun.rpc.request.xrpListWallets({}),
 		)
 		if (walletList) {
 			wallets = walletList
@@ -137,28 +84,13 @@ export const EvmWallet = () => {
 				currentWalletId = walletList[0].id
 			}
 		}
-
-		const [key] = await tryCatch(
-			electrobun.rpc.request.getSecret({
-				service: 'koins',
-				name: 'alchemy_key',
-			}),
-		)
-		if (key) apiKey = key
-
-		// await moneroWallet.checkStatus()
-		// if (moneroWallet.installed && !moneroWallet.running && !moneroWallet.downloading) {
-		// 	await moneroWallet.start()
-		// 	await moneroWallet.checkStatus()
-		// }
-
 		await checkBiometric()
 		ready = true
 	}
 
 	const login = async () => {
-		accountType = 'multi'
-		if (seed) await switchNetwork(network)
+		accountType = 'xrp'
+		if (seed) await refresh()
 	}
 
 	const logout = async () => {
@@ -170,27 +102,25 @@ export const EvmWallet = () => {
 		seed = ''
 		address = ''
 		balance = '0'
-		tokenBalances = []
+		funded = true
 		transactions = []
 		error = ''
 		currentPasswordHash = null
-		electrobun.rpc?.request.setAutoSync(null)
 	}
 
-	const unlockWallet = async (walletId: string) => {
+	const loadSeedForWallet = async (walletId: string) => {
 		if (!electrobun.rpc) return false
 		const wallet = wallets.find((w) => w.id === walletId)
 		if (!wallet) return false
-		currentWalletId = walletId
 		const [vaultSeed] = await tryCatch(
-			electrobun.rpc.request.evmGetSeed({
+			electrobun.rpc.request.xrpGetSeed({
 				vaultKey: wallet.vaultKey,
 			}),
 		)
 		if (!vaultSeed) return false
 		seed = vaultSeed
+		address = wallet.address
 		await refresh()
-		await setAutoSync()
 		return true
 	}
 
@@ -203,8 +133,7 @@ export const EvmWallet = () => {
 		)
 		if (!authed) return false
 		if (!currentWalletId) return false
-		await loadSeedForWallet(currentWalletId)
-		return !!seed
+		return loadSeedForWallet(currentWalletId)
 	}
 
 	const unlockWithPassword = async (password: string) => {
@@ -219,22 +148,6 @@ export const EvmWallet = () => {
 		}
 	}
 
-	const loadSeedForWallet = async (walletId: string) => {
-		if (!electrobun.rpc) return false
-		const wallet = wallets.find((w) => w.id === walletId)
-		if (!wallet) return false
-		const [vaultSeed] = await tryCatch(
-			electrobun.rpc.request.evmGetSeed({
-				vaultKey: wallet.vaultKey,
-			}),
-		)
-		if (!vaultSeed) return false
-		seed = vaultSeed
-		await refresh()
-		await setAutoSync()
-		return true
-	}
-
 	const selectWallet = async (walletId: string) => {
 		currentWalletId = walletId
 		clearWallet()
@@ -244,7 +157,7 @@ export const EvmWallet = () => {
 			const [ph] = await tryCatch(
 				electrobun.rpc.request.getSecret({
 					service: 'koins',
-					name: `evm_auth_${walletId}`,
+					name: `xrp_auth_${walletId}`,
 				}),
 			)
 			if (ph) {
@@ -260,61 +173,89 @@ export const EvmWallet = () => {
 		if (!currentPasswordHash && biometricAvailable) {
 			return unlockWithBiometrics()
 		}
+		if (!currentPasswordHash) {
+			return loadSeedForWallet(walletId)
+		}
 		return false
 	}
 
-	const createWallet = async (
+	const saveWallet = async (
+		kind: 'create' | 'import',
 		name: string,
-		phrase: string,
+		secret: string | undefined,
 		password?: string,
 	) => {
 		loading = true
 		error = ''
 		try {
-			mnemonicToAccount(phrase.trim())
+			if (!electrobun.rpc) throw new Error('RPC not available')
 			let passwordHash: string | undefined
 			if (password) {
 				const ph = await hashPassword(password)
 				passwordHash = JSON.stringify(ph)
 			}
-			const [result, resultError] = await tryCatch(
-				electrobun.rpc!.request.evmCreateWallet({
-					name,
-					phrase: phrase.trim(),
-					passwordHash,
-				}),
-			)
-			if (resultError) throw resultError
+			const result: {
+				id: string
+				address: string
+				createdAt: string
+				seed?: string
+			} =
+				kind === 'create'
+					? await electrobun.rpc.request.xrpCreateWallet({
+							name,
+							hasPassword: !!passwordHash,
+						})
+					: await electrobun.rpc.request.xrpImportWallet({
+							name,
+							secret: secret!,
+							hasPassword: !!passwordHash,
+						})
 
 			if (passwordHash) {
-				await electrobun.rpc?.request.setSecret({
+				await electrobun.rpc.request.setSecret({
 					service: 'koins',
-					name: `evm_auth_${result.id}`,
+					name: `xrp_auth_${result.id}`,
 					value: passwordHash,
 				})
 			}
 
-			const newWallet: EvmWalletInfo = {
+			const newWallet: XrpWalletInfo = {
 				id: result.id,
 				name,
+				address: result.address,
 				hasPassword: !!passwordHash,
-				vaultKey: `evm_seed_${result.id}`,
+				vaultKey: `xrp_seed_${result.id}`,
 				createdAt: result.createdAt,
 			}
 			wallets = [...wallets, newWallet]
 			currentWalletId = result.id
 			if (passwordHash) currentPasswordHash = passwordHash
-			seed = phrase.trim()
+			seed = result.seed ?? secret!
+			address = result.address
 			await refresh()
+			return result.seed
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Invalid seed phrase'
+			error = e instanceof Error ? e.message : 'Failed to save wallet'
+			throw e
 		} finally {
 			loading = false
 		}
 	}
 
+	const createWallet = async (name: string, password?: string) => {
+		return saveWallet('create', name, undefined, password)
+	}
+
+	const importWallet = async (
+		name: string,
+		secret: string,
+		password?: string,
+	) => {
+		return saveWallet('import', name, secret, password)
+	}
+
 	const deleteWallet = async (walletId: string) => {
-		await electrobun.rpc?.request.evmDeleteWallet({ id: walletId })
+		await electrobun.rpc?.request.xrpDeleteWallet({ id: walletId })
 		wallets = wallets.filter((w) => w.id !== walletId)
 		if (currentWalletId === walletId) {
 			clearWallet()
@@ -327,103 +268,49 @@ export const EvmWallet = () => {
 		currentWalletId = null
 	}
 
-	const switchNetwork = async (id: NetworkId) => {
-		network = id
-		if (seed) await refresh()
-	}
-
 	const refresh = async () => {
-		if (!seed || !electrobun.rpc) return
+		if (!address || !electrobun.rpc) return
+		const rpc = electrobun.rpc
 		loadingBalance = true
 		loadingTransactions = true
-		balance = '0'
 		error = ''
-		const account = mnemonicToAccount(seed)
-		address = account.address
-		const client = createPublicClient({ transport: http(net().rpc) })
-
-		syncTxHistory()
 		;(async () => {
-			const [nativeBal] = await tryCatch(
-				client.getBalance({ address: account.address }),
+			const [bal] = await tryCatch(
+				rpc.request.xrpGetBalance({ address }),
 			)
-			if (nativeBal !== undefined) balance = formatEther(nativeBal)
-			const [bals] = await tryCatch(
-				electrobun.rpc.request.fetchTokenBalances({
-					address,
-					chainid: net().chainid,
-				}),
-			)
-			if (bals) tokenBalances = bals
+			if (bal) {
+				balance = bal.balance
+				funded = bal.funded
+			}
+			const [p] = await tryCatch(rpc.request.fetchXrpPrice({}))
+			if (p) price = p.usd
+			const [f] = await tryCatch(rpc.request.xrpGetFee({}))
+			if (f) fee = f.fee
 			loadingBalance = false
 		})()
 		;(async () => {
-			await fetchTxHistory()
+			const [txs] = await tryCatch(
+				rpc.request.xrpGetTransactions({ address }),
+			)
+			if (txs) transactions = txs
 			loadingTransactions = false
 		})()
-	}
-
-	const syncTxHistory = () => {
-		if (!address || !apiKey || !electrobun.rpc) return
-		electrobun.rpc.request.syncTxHistory({
-			address,
-			chainid: net().chainid,
-		})
-	}
-
-	const setAutoSync = async () => {
-		if (!address || !electrobun.rpc) return
-		electrobun.rpc.request.setAutoSync({
-			address,
-			chainid: net().chainid,
-		})
-	}
-
-	const flushTxCache = async () => {
-		await electrobun.rpc?.request.flushTxCache({})
-		await fetchTxHistory()
-	}
-
-	const saveApiKey = async (key: string) => {
-		await electrobun.rpc?.request.setSecret({
-			service: 'koins',
-			name: 'alchemy_key',
-			value: key,
-		})
-		apiKey = key
-		syncTxHistory()
-		if (address) await fetchTxHistory()
-	}
-
-	const fetchTxHistory = async () => {
-		if (!address) {
-			transactions = []
-			return
-		}
-		const txs = await electrobun.rpc?.request.fetchCachedTxHistory({
-			address,
-			chainid: net().chainid,
-		})
-		transactions = txs ?? []
 	}
 
 	const send = async (
 		to: string,
 		amount: string,
-		contractAddress?: string,
-		tokenDecimals?: number,
+		destinationTag?: number,
 	) => {
 		if (!electrobun.rpc || !seed) throw new Error('Wallet not unlocked')
-		const hash = await electrobun.rpc.request.evmSendTransfer({
-			seed,
+		const result = await electrobun.rpc.request.xrpSend({
+			secret: seed,
 			to,
 			amount,
-			chainid: net().chainid,
-			contractAddress,
-			tokenDecimals,
+			destinationTag,
 		})
 		await refresh()
-		return hash
+		return result
 	}
 
 	const lock = () => {
@@ -432,7 +319,6 @@ export const EvmWallet = () => {
 
 	const reset = () => {
 		clearWallet()
-		apiKey = ''
 		wallets = []
 		currentWalletId = null
 	}
@@ -464,34 +350,14 @@ export const EvmWallet = () => {
 		get balance() {
 			return balance
 		},
-		get tokenBalances() {
-			return tokenBalances
+		get funded() {
+			return funded
 		},
-		get network() {
-			return network
+		get price() {
+			return price
 		},
-		get chainid() {
-			return net().chainid
-		},
-		get networkName() {
-			return net().name
-		},
-		get symbol() {
-			return net().symbol
-		},
-		get explorerUrl() {
-			return net().explorerUrl
-		},
-		get explorerAddressUrl() {
-			return address
-				? `${net().explorerUrl.replace('/tx/', '/address/')}${address}`
-				: ''
-		},
-		get networks() {
-			return networks
-		},
-		get apiKey() {
-			return apiKey
+		get fee() {
+			return fee
 		},
 		get transactions() {
 			return transactions
@@ -526,8 +392,8 @@ export const EvmWallet = () => {
 		get currentPasswordHash() {
 			return currentPasswordHash
 		},
-		set apiKey(v: string) {
-			apiKey = v
+		get explorerAddressUrl() {
+			return address ? `${xrpNetwork.explorerAddressUrl}${address}` : ''
 		},
 		set error(v: string) {
 			error = v
@@ -537,9 +403,7 @@ export const EvmWallet = () => {
 		logout,
 		refresh,
 		createWallet,
-		switchNetwork,
-		saveApiKey,
-		fetchTxHistory,
+		importWallet,
 		lock,
 		reset,
 		resetApp,
@@ -548,14 +412,11 @@ export const EvmWallet = () => {
 		hashPassword,
 		selectWallet,
 		selectAndUnlockWallet,
-		unlockWallet,
+		loadSeedForWallet,
 		deleteWallet,
 		clearSelection,
 		send,
-		syncTxHistory,
-		setAutoSync,
-		flushTxCache,
 	}
 }
 
-export const evmWallet = EvmWallet()
+export const xrpWallet = XrpWallet()

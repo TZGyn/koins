@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { evmWallet as wallet } from '$lib/states/evm-wallet.svelte.js'
 	import { moneroWallet } from '$lib/states/monero-wallet.svelte.js'
+	import { xrpWallet } from '$lib/states/xrp-wallet.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import {
 		Card,
@@ -13,14 +13,20 @@
 	import { onMount } from 'svelte'
 	import { frontendLog, frontendLogError } from '$lib/electrobun.js'
 
-	const w = wallet
-
 	let feError = $state<string | null>(null)
 
 	onMount(() => {
 		frontendLog('index.svelte mounted')
-		w.init().catch((e) => frontendLogError('w.init() failed', e))
 		moneroWallet.init().catch((e) => frontendLogError('moneroWallet.init() failed', e))
+		xrpWallet.init().catch((e) => frontendLogError('xrpWallet.init() failed', e))
+	})
+
+	$effect(() => {
+		if (moneroWallet.accountType === 'monero') {
+			navigate('/monero')
+		} else if (xrpWallet.accountType === 'xrp') {
+			navigate('/xrp')
+		}
 	})
 
 	$effect(() => {
@@ -56,61 +62,42 @@
 {/if}
 
 <div class="mx-auto mt-24 max-w-sm">
-	{#if !w.ready}
-		<p class="text-center text-muted-foreground text-sm">
-			Loading...
-		</p>
-	{:else if w.accountType}
-		{#if w.accountType === 'multi'}
-			{navigate('/multicoin')}
-		{:else}
-			{navigate('/monero')}
-		{/if}
-	{:else}
-		<Card>
-			<CardHeader class="text-center">
-				<CardTitle>Welcome</CardTitle>
-				<CardDescription>
-					Choose an account type to get started
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<div class="flex flex-col gap-3">
-					<Button
-						onclick={async () => {
-							await w.login()
-							navigate('/multicoin')
-						}}
-						class="w-full">
-						<span class="-ml-1 mr-2 flex items-center">
-							<img
-								src="/icons/ethereum.png"
-								alt=""
-								class="relative z-30 size-5 rounded-full ring-2 ring-accent" />
-							<img
-								src="/icons/binance.png"
-								alt=""
-								class="-ml-1.5 relative z-20 size-5 rounded-full ring-2 ring-accent" />
-							<img
-								src="/icons/polygon.png"
-								alt=""
-								class="-ml-1.5 relative z-10 size-5 rounded-full ring-2 ring-accent" />
-						</span>
-					</Button>
-					<Button
-						onclick={async () => {
-							await moneroWallet.login()
-							navigate('/monero')
-						}}
-						variant="outline"
-						class="w-full">
-						<img
-							src="/icons/monero.png"
-							alt=""
-							class="-ml-1 mr-1.5 inline-block size-5 rounded-full align-middle" />
-					</Button>
-				</div>
-			</CardContent>
-		</Card>
-	{/if}
+	<Card>
+		<CardHeader class="text-center">
+			<CardTitle>Welcome</CardTitle>
+			<CardDescription>
+				Choose an account type to get started
+			</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<div class="flex flex-col gap-3">
+				<Button
+					onclick={async () => {
+						await moneroWallet.login()
+						navigate('/monero')
+					}}
+					variant="outline"
+					class="w-full">
+					<img
+						src="/icons/monero.png"
+						alt=""
+						class="-ml-1 mr-1.5 inline-block size-5 rounded-full align-middle" />
+					Monero
+				</Button>
+				<Button
+					onclick={async () => {
+						await xrpWallet.login()
+						navigate('/xrp')
+					}}
+					variant="outline"
+					class="w-full">
+					<img
+						src="/icons/xrp.png"
+						alt=""
+						class="-ml-1 mr-1.5 inline-block size-5 rounded-full align-middle" />
+					XRP
+				</Button>
+			</div>
+		</CardContent>
+	</Card>
 </div>

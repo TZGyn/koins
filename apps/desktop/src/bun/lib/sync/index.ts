@@ -1,1 +1,0 @@
-export { syncTransactionHistory } from './sync-tx-history'

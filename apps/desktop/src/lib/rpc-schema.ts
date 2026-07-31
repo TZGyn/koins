@@ -79,65 +79,48 @@ export type MoneroFeeEstimate = {
 	estimatedFee: string
 }
 
-export type TxEntry = {
-	hash: string
-	timeStamp: string
-	from: string
-	to: string
-	value: string
-	tokenSymbol?: string
-	tokenDecimal?: string
-	contractAddress?: string
-	logo?: string
-	pairedValue?: string
-	pairedSymbol?: string
-	pairedDecimals?: string
-	pairedContractAddress?: string
-	pairedLogo?: string
-}
-
-export type TransactionDetails = {
-	hash: string
-	from: string
-	to: string | null
-	value: string
-	blockNumber: string | null
-	fee: string
-	gasPrice: string
-	status: 'success' | 'reverted'
-	type: string
-	nonce: number
-	input: string
-	pairedValue?: string
-	pairedSymbol?: string
-	pairedDecimals?: string
-	pairedContractAddress?: string
-	pairedLogo?: string
-}
-
-export type TokenBalanceResult = {
-	symbol: string
-	decimals: number
-	balance: string
-	contractAddress: string
-	logo?: string
-}
-
-export type TokenPriceEntry = {
-	symbol: string
-	currency: string
-	value: string
-	lastUpdatedAt: string
-	network?: string
-	address?: string
-}
-
-export type EvmWalletInfo = {
+export type XrpWalletInfo = {
 	id: string
 	name: string
+	address: string
 	hasPassword: boolean
 	vaultKey: string
 	createdAt: string
+}
+
+export type XrpBalance = {
+	address: string
+	balance: string
+	funded: boolean
+}
+
+export type XrpTxEntry = {
+	hash: string
+	amount: string
+	timestamp: string
+	direction: 'in' | 'out'
+	from: string
+	to: string
+	destinationTag?: number
+	fee: string
+	confirmed: boolean
+}
+
+export type XrpTxDetails = {
+	hash: string
+	from: string
+	to: string
+	amount: string
+	fee: string
+	timestamp: string
+	ledgerIndex: number
+	destinationTag?: number
+	confirmed: boolean
+}
+
+export type XrpSendResult = {
+	hash: string
+	fee: string
 }
 
 export type GeneralRpcRequests = {
@@ -149,23 +132,6 @@ export type GeneralRpcRequests = {
 	openExternal: { params: { url: string }; response: void }
 	generateQrCode: { params: { text: string; size?: number }; response: string }
 	logToFile: { params: { message: string }; response: void }
-}
-
-export type EvmRpcRequests = {
-	fetchTxHistory: { params: { address: string; chainid: string }; response: TxEntry[] }
-	fetchCachedTxHistory: { params: { address: string; chainid: string }; response: TxEntry[] }
-	syncTxHistory: { params: { address: string; chainid: string }; response: void }
-	flushTxCache: { params: {}; response: void }
-	setAutoSync: { params: { address: string; chainid: string } | null; response: void }
-	fetchTokenBalances: { params: { address: string; chainid: string }; response: TokenBalanceResult[] }
-	fetchTransactionDetails: { params: { hash: string; chainid: string; address?: string }; response: TransactionDetails | null }
-	fetchTokenPrices: { params: { symbols?: string[]; addresses?: { network: string; address: string }[] }; response: TokenPriceEntry[] }
-	fetchGasPrice: { params: { chainid: string }; response: string | null }
-	evmCreateWallet: { params: { name: string; phrase: string; passwordHash?: string }; response: { id: string; name: string; createdAt: string } }
-	evmListWallets: { params: {}; response: EvmWalletInfo[] }
-	evmGetSeed: { params: { vaultKey: string }; response: string }
-	evmDeleteWallet: { params: { id: string }; response: void }
-	evmSendTransfer: { params: { seed: string; to: string; amount: string; chainid: string; contractAddress?: string; tokenDecimals?: number }; response: string }
 }
 
 export type MoneroRpcRequests = {
@@ -190,15 +156,27 @@ export type MoneroRpcRequests = {
 	fetchMoneroPrice: { params: {}; response: { usd: string } | null }
 }
 
+export type XrpRpcRequests = {
+	xrpListWallets: { params: {}; response: XrpWalletInfo[] }
+	xrpCreateWallet: { params: { name: string; hasPassword?: boolean }; response: { id: string; address: string; seed: string; createdAt: string } }
+	xrpImportWallet: { params: { name: string; secret: string; hasPassword?: boolean }; response: { id: string; address: string; createdAt: string } }
+	xrpDeleteWallet: { params: { id: string }; response: void }
+	xrpGetSeed: { params: { vaultKey: string }; response: string }
+	xrpGetBalance: { params: { address: string }; response: XrpBalance }
+	xrpGetTransactions: { params: { address: string }; response: XrpTxEntry[] }
+	xrpGetTxDetails: { params: { hash: string }; response: XrpTxDetails | null }
+	xrpSend: { params: { secret: string; to: string; amount: string; destinationTag?: number }; response: XrpSendResult }
+	xrpGetFee: { params: {}; response: { fee: string } | null }
+	fetchXrpPrice: { params: {}; response: { usd: string } | null }
+}
+
 export type RPC = {
 	bun: {
-		requests: GeneralRpcRequests & EvmRpcRequests & MoneroRpcRequests
+		requests: GeneralRpcRequests & MoneroRpcRequests & XrpRpcRequests
 		messages: {}
 	}
 	webview: {
 		requests: {}
-		messages: {
-			transfersUpdate: { count: number; chainid: string; address: string }
-		}
+		messages: {}
 	}
 }

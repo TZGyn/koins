@@ -9,10 +9,11 @@ export type {
 	MoneroAccountEntry,
 	MoneroSendResult,
 	MoneroTransferDetails,
-	TxEntry,
-	TransactionDetails,
-	TokenBalanceResult,
-	EvmWalletInfo,
+	XrpWalletInfo,
+	XrpBalance,
+	XrpTxEntry,
+	XrpTxDetails,
+	XrpSendResult,
 } from './rpc-schema'
 
 const rpc = Electroview.defineRPC<RPC>({
