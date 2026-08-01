@@ -80,7 +80,7 @@ export const XrpWallet = () => {
 		)
 		if (walletList) {
 			wallets = walletList
-			if (walletList.length === 1 && !currentWalletId) {
+			if (walletList.length > 0 && !currentWalletId) {
 				currentWalletId = walletList[0].id
 			}
 		}

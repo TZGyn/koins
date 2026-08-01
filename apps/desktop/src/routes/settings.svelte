@@ -9,14 +9,10 @@
 		CardTitle,
 	} from '$lib/components/ui/card/index.js'
 	import { navigate } from 'sv-router/generated'
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left'
-	import Trash2 from '@lucide/svelte/icons/trash-2'
-	import WalletIcon from '@lucide/svelte/icons/wallet'
 
 	const w = xrpWallet
 	let confirm = $state(false)
 	let resetting = $state(false)
-	let deletingWalletId = $state<string | null>(null)
 
 	async function handleReset() {
 		resetting = true
@@ -25,84 +21,39 @@
 		resetting = false
 		confirm = false
 	}
-
-	async function handleDeleteWallet(id: string) {
-		await w.deleteWallet(id)
-		deletingWalletId = null
-		if (w.wallets.length === 0) navigate('/xrp')
-	}
 </script>
 
 <div class="mx-auto max-w-xl">
-	<div class="flex flex-col gap-4">
-{#if w.wallets.length > 0}
-			<Card>
-				<CardHeader>
-					<CardTitle>Wallets</CardTitle>
-					<CardDescription>Manage your XRP wallets</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div class="flex flex-col gap-2">
-						{#each w.wallets as wal}
-							<div class="flex items-center gap-3 rounded-md border border-input p-3">
-								<WalletIcon size={18} class="shrink-0 text-muted-foreground" />
-								<div class="flex-1 min-w-0">
-									<p class="font-medium text-sm">{wal.name}</p>
-									<p class="text-xs text-muted-foreground truncate font-mono">
-										{wal.address}
-									</p>
-								</div>
-								{#if deletingWalletId === wal.id}
-									<div class="flex items-center gap-1.5">
-										<Button size="sm" variant="destructive" onclick={() => handleDeleteWallet(wal.id)}>
-											Delete
-										</Button>
-										<Button size="sm" variant="outline" onclick={() => (deletingWalletId = null)}>
-											Cancel
-										</Button>
-									</div>
-								{:else}
-									<Button size="sm" variant="outline" onclick={() => (deletingWalletId = wal.id)}>
-										<Trash2 size={14} />
-									</Button>
-								{/if}
-							</div>
-						{/each}
-					</div>
-				</CardContent>
-			</Card>
-		{/if}
-		<Card>
-			<CardHeader>
-				<CardTitle>Settings</CardTitle>
-				<CardDescription>App preferences and data management</CardDescription>
-			</CardHeader>
-			<CardContent class="space-y-4">
-				<div>
-					<p class="font-medium text-xs">Reset App</p>
-					<p class="text-muted-foreground text-xs mt-1">
-						Removes all XRP wallets and seeds from the keychain. You
-						can then set up the wallet fresh.
-					</p>
-					<div class="mt-3">
-						{#if confirm}
-							<div class="flex gap-2 items-center">
-								<p class="text-xs text-red-500">Are you sure?</p>
-								<Button size="sm" variant="destructive" onclick={handleReset} disabled={resetting}>
-									{resetting ? 'Resetting...' : 'Yes, reset everything'}
-								</Button>
-								<Button size="sm" variant="outline" onclick={() => (confirm = false)}>
-									Cancel
-								</Button>
-							</div>
-						{:else}
-							<Button variant="outline" onclick={() => (confirm = true)}>
-								Reset App
+	<Card>
+		<CardHeader>
+			<CardTitle>Settings</CardTitle>
+			<CardDescription>App preferences and data management</CardDescription>
+		</CardHeader>
+		<CardContent class="space-y-4">
+			<div>
+				<p class="font-medium text-xs">Reset App</p>
+				<p class="text-muted-foreground text-xs mt-1">
+					Removes all wallets and seeds from the keychain. You can
+					then set up the wallet fresh.
+				</p>
+				<div class="mt-3">
+					{#if confirm}
+						<div class="flex gap-2 items-center">
+							<p class="text-xs text-red-500">Are you sure?</p>
+							<Button size="sm" variant="destructive" onclick={handleReset} disabled={resetting}>
+								{resetting ? 'Resetting...' : 'Yes, reset everything'}
 							</Button>
-						{/if}
-					</div>
+							<Button size="sm" variant="outline" onclick={() => (confirm = false)}>
+								Cancel
+							</Button>
+						</div>
+					{:else}
+						<Button variant="outline" onclick={() => (confirm = true)}>
+							Reset App
+						</Button>
+					{/if}
 				</div>
-			</CardContent>
-		</Card>
-	</div>
+			</div>
+		</CardContent>
+	</Card>
 </div>

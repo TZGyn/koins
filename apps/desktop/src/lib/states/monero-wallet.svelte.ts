@@ -82,6 +82,10 @@ export const MoneroWallet = () => {
 			await checkStatus()
 		}
 		await listWallets()
+		if (wallets.length > 0) {
+			const pw = await moneroGetStoredPassword(wallets[0])
+			if (pw) await openExistingWallet(wallets[0], pw)
+		}
 	}
 
 	const logout = async () => {

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { xrpWallet } from '$lib/states/xrp-wallet.svelte.js'
-	import { session } from '$lib/states/session.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Input } from '$lib/components/ui/input/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
@@ -12,9 +11,6 @@
 		CardTitle,
 	} from '$lib/components/ui/card/index.js'
 	import Fingerprint from '@lucide/svelte/icons/fingerprint'
-	import LockKeyhole from '@lucide/svelte/icons/lock-keyhole'
-	import Plus from '@lucide/svelte/icons/plus'
-	import WalletIcon from '@lucide/svelte/icons/wallet'
 	import Loader from '$lib/components/loader.svelte'
 	import { navigate } from 'sv-router/generated'
 
@@ -24,7 +20,6 @@
 	let inputSeed = $state('')
 	let inputPassword = $state('')
 	let inputUnlockPassword = $state('')
-	let showCreateForm = $state(false)
 	let newSeed = $state<string | null>(null)
 
 	let initStarted = false
@@ -108,12 +103,10 @@
 						</Button>
 					</CardContent>
 				</Card>
-			{:else if w.wallets.length === 0 || showCreateForm}
+			{:else if w.wallets.length === 0}
 				<Card>
 					<CardHeader>
-						<CardTitle>
-							{showCreateForm ? 'Add Another Wallet' : 'Create / Import Wallet'}
-						</CardTitle>
+						<CardTitle>Create / Import Wallet</CardTitle>
 						<CardDescription>
 							Generate a new XRP wallet or import an existing seed
 						</CardDescription>
@@ -139,75 +132,18 @@
 								type="password"
 								placeholder="Set a password (optional)"
 								bind:value={inputPassword} />
-							<div class="flex gap-2">
-								<Button
-									variant="outline"
-									onclick={handleImport}
-									disabled={w.loading ||
-										!inputSeed.trim() ||
-										!inputWalletName.trim()}>
-									{w.loading ? 'Importing...' : 'Import Wallet'}
-								</Button>
-								{#if showCreateForm}
-									<Button
-										variant="outline"
-										onclick={() => (showCreateForm = false)}>
-										Cancel
-									</Button>
-								{/if}
-							</div>
+							<Button
+								variant="outline"
+								onclick={handleImport}
+								disabled={w.loading ||
+									!inputSeed.trim() ||
+									!inputWalletName.trim()}>
+								{w.loading ? 'Importing...' : 'Import Wallet'}
+							</Button>
 						</div>
 						{#if w.error}
 							<p class="mt-3 text-xs text-red-500">{w.error}</p>
 						{/if}
-					</CardContent>
-				</Card>
-			{:else if !w.currentWalletId}
-				<Card>
-					<CardHeader>
-						<CardTitle>Wallets</CardTitle>
-						<CardDescription>Select a wallet to use</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<div class="flex flex-col gap-2">
-							{#each w.wallets as wal}
-								<button
-									onclick={async () => {
-										if (session.unlocked) {
-											await w.autoUnlock(wal.id)
-										} else if (wal.hasPassword) {
-											await w.selectWallet(wal.id)
-										} else {
-											await w.selectAndUnlockWallet(wal.id)
-										}
-									}}
-									class="flex w-full cursor-pointer items-center gap-3 rounded-md border border-input p-3 text-left hover:bg-muted transition-colors">
-									<WalletIcon
-										size={20}
-										class="shrink-0 text-muted-foreground" />
-									<div class="flex-1 min-w-0">
-										<p class="font-medium text-sm">{wal.name}</p>
-										<p class="text-xs text-muted-foreground truncate font-mono">
-											{wal.address}
-										</p>
-									</div>
-									<div class="flex items-center gap-1">
-										{#if wal.hasPassword}
-											<LockKeyhole
-												size={14}
-												class="text-muted-foreground" />
-										{/if}
-									</div>
-								</button>
-							{/each}
-							<Button
-								variant="outline"
-								onclick={() => (showCreateForm = true)}
-								class="mt-2">
-								<Plus size={16} />
-								Add Wallet
-							</Button>
-						</div>
 					</CardContent>
 				</Card>
 			{:else if w.isLocked}
@@ -254,11 +190,6 @@
 									</Button>
 								</div>
 							{/if}
-							<Button
-								variant="outline"
-								onclick={() => w.clearSelection()}>
-								Pick another wallet
-							</Button>
 						</div>
 						{#if w.error}
 							<p class="mt-3 text-xs text-red-500">{w.error}</p>

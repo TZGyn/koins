@@ -269,40 +269,7 @@
 			</button>
 		</div>
 
-		{#if xrpWallet.wallets.length > 1}
-			<Card>
-				<CardHeader class="pb-3">
-					<CardTitle class="text-sm">XRP Wallets</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div class="space-y-1">
-						{#each xrpWallet.wallets as wal}
-							<button
-								onclick={() => {
-									xrpWallet.selectAndUnlockWallet(wal.id)
-									navigate('/xrp')
-								}}
-								class="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-muted transition-colors">
-								<WalletIcon size={16} class="shrink-0 text-muted-foreground" />
-								<div class="flex-1 min-w-0">
-									<p class="text-sm font-medium">{wal.name}</p>
-									<p class="text-xs text-muted-foreground truncate font-mono">{wal.address}</p>
-								</div>
-								{#if xrpBalances[wal.address]?.funded === false}
-									<span class="text-xs text-muted-foreground">unfunded</span>
-								{:else if xrpBalances[wal.address]}
-									<span class="font-mono text-sm tabular-nums">
-										{fmtBal(xrpBalances[wal.address].balance)}
-									</span>
-								{/if}
-							</button>
-						{/each}
-					</div>
-				</CardContent>
-			</Card>
-		{/if}
-
-		<div class="flex gap-3">
+	<div class="flex gap-3">
 			<Button
 				onclick={() => navigate('/xrp')}
 				variant="outline"
