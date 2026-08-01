@@ -21,7 +21,7 @@
 	})
 </script>
 
-<div class="mx-auto mt-16 max-w-md">
+<div class="mx-auto max-w-xl">
 	<div class="flex flex-col gap-4">
 		<Card>
 			<CardHeader>
@@ -82,14 +82,7 @@
 						</p>
 					{/if}
 
-					<div class="pt-2 border-t border-border">
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={() => navigate('/monero')}>
-							Back
-						</Button>
-					</div>
+					
 				</div>
 			</CardContent>
 		</Card>

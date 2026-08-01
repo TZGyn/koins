@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { moneroWallet } from '$lib/states/monero-wallet.svelte.js'
+	import { session } from '$lib/states/session.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
 	import { Input } from '$lib/components/ui/input/index.js'
@@ -47,7 +48,7 @@
 	})
 </script>
 
-<div class="mx-auto mt-16 max-w-md">
+<div class="mx-auto max-w-xl">
 	<div class="flex flex-col gap-4">
 		{#if !w.ready}
 			<p class="text-center text-muted-foreground text-sm mt-8">
@@ -59,9 +60,6 @@
 				to get started
 			</p>
 		{:else if w.accountType === 'monero'}
-			<a href="/" class="text-xs text-muted-foreground underline mb-1 inline-block">
-				← Back to home
-			</a>
 			{#if w.downloading}
 				<Card>
 					<CardContent>
@@ -134,7 +132,19 @@
 								</div>
 								{#if moneroSelectedWallet}
 									<div class="flex flex-col gap-2">
-										{#if w.biometricAvailable}
+										{#if session.unlocked}
+											<Button
+												onclick={() =>
+													w.autoUnlock(
+														moneroSelectedWallet,
+													)}
+												disabled={w.loading}>
+												{#if w.loading}
+													<Loader />
+												{/if}
+												Open
+											</Button>
+										{:else if w.biometricAvailable}
 											<Button
 												onclick={async () => {
 													const ok = await w.biometricAuth()

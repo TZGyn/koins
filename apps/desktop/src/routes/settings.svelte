@@ -33,23 +33,9 @@
 	}
 </script>
 
-<div class="mx-auto mt-16 max-w-md">
+<div class="mx-auto max-w-xl">
 	<div class="flex flex-col gap-4">
-		<div class="flex items-center gap-2">
-			<Button
-				variant="outline"
-				size="sm"
-				onclick={() =>
-					w.currentWalletId
-						? navigate('/xrp/wallet/:id', {
-								params: { id: w.currentWalletId },
-							})
-						: navigate('/xrp')}>
-				<ArrowLeft size={16} />
-				Back
-			</Button>
-		</div>
-		{#if w.wallets.length > 0}
+{#if w.wallets.length > 0}
 			<Card>
 				<CardHeader>
 					<CardTitle>Wallets</CardTitle>

@@ -179,6 +179,28 @@ export const XrpWallet = () => {
 		return false
 	}
 
+	const autoUnlock = async (walletId?: string) => {
+		const id = walletId ?? currentWalletId ?? wallets[0]?.id
+		if (!id) return false
+		currentWalletId = id
+		const wallet = wallets.find((w) => w.id === id)
+		if (!wallet) return false
+		if (electrobun.rpc && wallet.hasPassword) {
+			const [ph] = await tryCatch(
+				electrobun.rpc.request.getSecret({
+					service: 'koins',
+					name: `xrp_auth_${id}`,
+				}),
+			)
+			if (ph) currentPasswordHash = ph
+		} else {
+			currentPasswordHash = null
+		}
+		const ok = await loadSeedForWallet(id)
+		if (ok) accountType = 'xrp'
+		return ok
+	}
+
 	const saveWallet = async (
 		kind: 'create' | 'import',
 		name: string,
@@ -412,6 +434,7 @@ export const XrpWallet = () => {
 		hashPassword,
 		selectWallet,
 		selectAndUnlockWallet,
+		autoUnlock,
 		loadSeedForWallet,
 		deleteWallet,
 		clearSelection,

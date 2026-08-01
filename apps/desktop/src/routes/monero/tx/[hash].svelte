@@ -35,15 +35,7 @@
 	})
 </script>
 
-<div class="mx-auto mt-16 max-w-md">
-	<Button
-		variant="outline"
-		size="sm"
-		onclick={() => navigate('/monero')}
-		class="mb-4">
-		&larr; Back
-	</Button>
-
+<div class="mx-auto max-w-xl">
 	<Card>
 		<CardHeader>
 			<CardTitle>Transaction Details</CardTitle>

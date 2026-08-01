@@ -246,6 +246,22 @@ export const MoneroWallet = () => {
 		await refresh()
 	}
 
+	const autoUnlock = async (name?: string) => {
+		if (!electrobun.rpc) return false
+		const target = name ?? wallets[0]
+		if (!target) return false
+		const pw = await moneroGetStoredPassword(target)
+		if (!pw) return false
+		await electrobun.rpc.request.moneroOpenWallet({
+			name: target,
+			password: pw,
+		})
+		walletName = target
+		walletOpen = true
+		await refresh()
+		return true
+	}
+
 	const refresh = async () => {
 		if (!electrobun.rpc) return
 		loading = true
@@ -430,6 +446,7 @@ export const MoneroWallet = () => {
 		createWallet,
 		restoreWallet,
 		openWallet,
+		autoUnlock,
 		refresh,
 		send,
 		sendAll,

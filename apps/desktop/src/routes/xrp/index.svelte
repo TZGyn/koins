@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { xrpWallet } from '$lib/states/xrp-wallet.svelte.js'
+	import { session } from '$lib/states/session.svelte.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { Input } from '$lib/components/ui/input/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
@@ -63,7 +64,7 @@
 	}
 </script>
 
-<div class="mx-auto mt-16 max-w-md">
+<div class="mx-auto max-w-xl">
 	<div class="flex flex-col gap-4">
 		{#if !w.ready}
 			<p class="text-center text-muted-foreground text-sm mt-8">
@@ -75,11 +76,6 @@
 				to get started
 			</p>
 		{:else}
-			<a
-				href="/"
-				class="text-xs text-muted-foreground underline mb-1 inline-block">
-				← Back to home
-			</a>
 			{#if newSeed}
 				<Card>
 					<CardHeader>
@@ -177,7 +173,9 @@
 							{#each w.wallets as wal}
 								<button
 									onclick={async () => {
-										if (wal.hasPassword) {
+										if (session.unlocked) {
+											await w.autoUnlock(wal.id)
+										} else if (wal.hasPassword) {
 											await w.selectWallet(wal.id)
 										} else {
 											await w.selectAndUnlockWallet(wal.id)

@@ -55,7 +55,7 @@
 	})
 </script>
 
-<div class="mx-auto mt-16 max-w-md">
+<div class="mx-auto max-w-xl">
 	<div class="flex flex-col gap-4">
 		<Card>
 			<CardHeader>

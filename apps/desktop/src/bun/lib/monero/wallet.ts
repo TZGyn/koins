@@ -353,16 +353,44 @@ export async function getTransferDetails(
 	txid: string,
 ): Promise<any> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const result = await rawRpc(state, 'get_transfer_by_txid', { txid })
-	if (!result?.transfer) return null
-	const t = result.transfer
+	let t: any = null
+	let dests: any[] = []
+	try {
+		const result = await rawRpc(state, 'get_transfer_by_txid', { txid })
+		if (result?.transfer) {
+			t = result.transfer
+			dests =
+				t.destinations?.map((d: any) => ({
+					address: d.address,
+					amount: d.amount?.toString() ?? '0',
+				})) ?? []
+		}
+	} catch {
+		// get_transfer_by_txid can fail for various reasons; fall back
+	}
+	if (!t) {
+		const params: Record<string, any> = {
+			in: true,
+			out: true,
+			pending: true,
+			pool: true,
+		}
+		const result = await rawRpc(state, 'get_transfers', params)
+		let found: any = null
+		for (const dir of ['in', 'out', 'pending', 'pool'] as const) {
+			const transfers = result[dir] ?? []
+			for (const tr of transfers) {
+				if (tr.txid === txid) {
+					found = { ...tr, type: dir === 'in' ? 'in' : 'out' }
+					break
+				}
+			}
+			if (found) break
+		}
+		if (!found) return null
+		t = found
+	}
 	const isIn = t.type === 'in'
-	const isOut = t.type === 'out'
-	const dests =
-		t.destinations?.map((d: any) => ({
-			address: d.address,
-			amount: d.amount?.toString() ?? '0',
-		})) ?? []
 	const subaddrIndices = isIn
 		? [
 				{
