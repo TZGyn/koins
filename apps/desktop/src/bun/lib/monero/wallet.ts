@@ -24,7 +24,7 @@ export function createMoneroWalletState(): MoneroWalletState {
 		process: null,
 		rpcPort: 28084,
 		rpcUser: 'koins',
-		rpcPassword: crypto.randomUUID(),
+		rpcPassword: 'koins-local-rpc',
 		daemonAddress: DEFAULT_DAEMON,
 	}
 }
@@ -96,6 +96,20 @@ export async function start(
 			'monero-wallet-rpc not installed. Call downloadBinary() first.',
 		)
 	state.daemonAddress = daemonAddress
+
+	// Kill any existing monero-wallet-rpc on the port (stale process from dev reloads)
+	try {
+		const proc = Bun.spawnSync(['lsof', '-ti', `tcp:${state.rpcPort}`], {
+			stdout: 'pipe',
+		})
+		const pids = proc.stdout.toString().trim().split('\n').filter(Boolean)
+		for (const pid of pids) {
+			try {
+				process.kill(Number(pid), 'SIGKILL')
+				console.log(`[monero] killed stale process ${pid} on port ${state.rpcPort}`)
+			} catch {}
+		}
+	} catch {}
 
 	console.log(`[monero] starting wallet-rpc process...`)
 	console.log(`[monero] daemon address: ${state.daemonAddress}`)
@@ -356,7 +370,9 @@ export async function getTransferDetails(
 	let t: any = null
 	let dests: any[] = []
 	try {
+		console.log('[monero] trying get_transfer_by_txid for', txid)
 		const result = await rawRpc(state, 'get_transfer_by_txid', { txid })
+		console.log('[monero] get_transfer_by_txid result:', result ? 'has result' : 'null')
 		if (result?.transfer) {
 			t = result.transfer
 			dests =
@@ -365,10 +381,11 @@ export async function getTransferDetails(
 					amount: d.amount?.toString() ?? '0',
 				})) ?? []
 		}
-	} catch {
-		// get_transfer_by_txid can fail for various reasons; fall back
+	} catch (e: any) {
+		console.log('[monero] get_transfer_by_txid failed:', e?.message?.slice(0, 100))
 	}
 	if (!t) {
+		console.log('[monero] falling back to get_transfers scan')
 		const params: Record<string, any> = {
 			in: true,
 			out: true,
@@ -376,9 +393,11 @@ export async function getTransferDetails(
 			pool: true,
 		}
 		const result = await rawRpc(state, 'get_transfers', params)
+		console.log('[monero] get_transfers result keys:', Object.keys(result ?? {}))
 		let found: any = null
 		for (const dir of ['in', 'out', 'pending', 'pool'] as const) {
 			const transfers = result[dir] ?? []
+			console.log(`[monero] ${dir}: ${transfers.length} transfers`)
 			for (const tr of transfers) {
 				if (tr.txid === txid) {
 					found = { ...tr, type: dir === 'in' ? 'in' : 'out' }
@@ -387,7 +406,12 @@ export async function getTransferDetails(
 			}
 			if (found) break
 		}
-		if (!found) return null
+		if (!found) {
+			console.log('[monero] txid not found in get_transfers. Available txids:', 
+				['in', 'out', 'pending', 'pool'].flatMap(d => (result[d] ?? []).map((t: any) => t.txid?.slice(0, 12))))
+			return null
+		}
+		console.log('[monero] found transfer in get_transfers')
 		t = found
 	}
 	const isIn = t.type === 'in'

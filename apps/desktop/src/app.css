@@ -123,14 +123,14 @@
 		@apply border-border outline-ring/50;
 	}
 	html {
-		@apply font-sans;
+		@apply font-sans h-full overflow-hidden;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 		text-rendering: optimizeLegibility;
 		font-feature-settings: "ss01", "cv01";
 	}
 	body {
-		@apply bg-background text-foreground;
+		@apply bg-background text-foreground h-full overflow-hidden;
 	}
 	::selection {
 		background: oklch(0.5 0 0 / 25%);

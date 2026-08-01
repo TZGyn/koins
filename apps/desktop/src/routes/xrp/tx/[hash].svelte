@@ -35,7 +35,7 @@
 	})
 </script>
 
-<div class="mx-auto max-w-xl">
+<div class="mx-auto max-w-lg">
 	<Card>
 		<CardHeader>
 			<CardTitle>Transaction Details</CardTitle>

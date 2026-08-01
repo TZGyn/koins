@@ -32,7 +32,7 @@
 		if (!moneroWallet.ready) await moneroWallet.init()
 		await Promise.allSettled([
 			xrpWallet.autoUnlock(),
-			moneroWallet.autoUnlock(),
+			moneroWallet.login(),
 		])
 	}
 
@@ -144,8 +144,8 @@
 				</div>
 			</header>
 
-			<main class="min-w-0 flex-1 overflow-y-auto">
-				<div class="mx-auto w-full max-w-2xl px-8 py-8">
+			<main class="min-h-0 min-w-0 flex-1 overflow-y-auto">
+				<div class="mx-auto w-full max-w-5xl px-6 pt-6 pb-6 lg:px-10">
 					{@render children?.()}
 				</div>
 			</main>

@@ -59,7 +59,7 @@
 	}
 </script>
 
-<div class="mx-auto max-w-xl">
+<div class="mx-auto max-w-lg">
 	<div class="flex flex-col gap-4">
 		{#if !w.ready}
 			<p class="text-center text-muted-foreground text-sm mt-8">
