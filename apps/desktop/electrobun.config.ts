@@ -4,7 +4,7 @@ export default {
 	app: {
 		name: 'koins',
 		identifier: 'koins.tzgyn.com',
-		version: '0.0.9',
+		version: '0.0.10',
 	},
 	build: {
 		// Vite builds to dist/, we copy from there
