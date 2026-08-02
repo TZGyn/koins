@@ -246,16 +246,15 @@ export async function stop(state: MoneroWalletState) {
 		console.log(`[monero] wallet save before stop failed:`, e)
 	}
 	if (state.process) {
-		console.log(
-			`[monero] sending SIGTERM to wallet-rpc (pid ${state.process.pid})`,
-		)
-		state.process.kill()
-		await Promise.race([state.process.exited, sleep(3000)])
-		if (state.process.exitCode === null) {
+		const proc = state.process
+		console.log(`[monero] sending SIGTERM to wallet-rpc (pid ${proc.pid})`)
+		proc.kill()
+		await Promise.race([proc.exited, sleep(3000)])
+		if (proc.exitCode === null) {
 			console.log(
 				`[monero] wallet-rpc did not exit gracefully, sending SIGKILL`,
 			)
-			state.process.kill('SIGKILL')
+			proc.kill('SIGKILL')
 		}
 		state.process = null
 	}

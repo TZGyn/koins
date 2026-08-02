@@ -101,6 +101,10 @@ export const MoneroWallet = () => {
 					await start()
 					await checkStatus()
 				}
+				if (!running) {
+					error = 'Wallet server failed to start. Please try again.'
+					return
+				}
 				await listWallets()
 				if (wallets.length > 0) {
 					const pw = await moneroGetStoredPassword(wallets[0])
