@@ -27,7 +27,7 @@ export const atomicToXmr = (atomic: string): string => {
 	return frac ? `${whole}.${frac}` : `${whole}`
 }
 
-export const MoneroWallet = () => {
+export const createMoneroWallet = () => {
 	let accountType = $state<'monero' | null>(null)
 	let ready = $state(false)
 	let biometricAvailable = $state(false)
@@ -105,14 +105,19 @@ export const MoneroWallet = () => {
 		return authed === true
 	}
 
+	let initPromise: Promise<void> | null = null
 	const init = async () => {
-		await checkStatus()
-		if (installed && !running && !downloading) {
-			await start()
+		if (initPromise) return initPromise
+		initPromise = (async () => {
 			await checkStatus()
-		}
-		await checkBiometric()
-		ready = true
+			if (installed && !running && !downloading) {
+				await start()
+				await checkStatus()
+			}
+			await checkBiometric()
+			ready = true
+		})()
+		return initPromise
 	}
 
 	const login = async () => {
@@ -669,6 +674,17 @@ export const MoneroWallet = () => {
 		createAccount,
 		createSubaddress,
 	}
+}
+
+// Singleton: calling MoneroWallet() always returns the same instance, so
+// no component can ever create a second, disconnected wallet state.
+type MoneroWalletStore = ReturnType<typeof createMoneroWallet>
+
+let moneroWalletInstance: MoneroWalletStore | null = null
+
+export const MoneroWallet = (): MoneroWalletStore => {
+	if (!moneroWalletInstance) moneroWalletInstance = createMoneroWallet()
+	return moneroWalletInstance
 }
 
 export const moneroWallet = MoneroWallet()

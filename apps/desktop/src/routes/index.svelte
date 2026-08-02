@@ -61,8 +61,6 @@
 
 	onMount(() => {
 		frontendLog('dashboard mounted')
-		moneroWallet.init().catch((e) => frontendLogError('moneroWallet.init() failed', e))
-		xrpWallet.init().catch((e) => frontendLogError('xrpWallet.init() failed', e))
 	})
 
 	// Balances live in the stores so they survive navigation; the effects

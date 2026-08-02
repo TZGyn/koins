@@ -22,18 +22,6 @@
 	let inputUnlockPassword = $state('')
 	let newSeed = $state<string | null>(null)
 
-	let initStarted = false
-
-	$effect(() => {
-		if (!initStarted) {
-			initStarted = true
-			w.init().then(async () => {
-				if (w.accountType === 'xrp') return
-				await w.login()
-			})
-		}
-	})
-
 	$effect(() => {
 		if (w.accountType === 'xrp' && w.currentWalletId && w.seed && !newSeed) {
 			navigate('/xrp/wallet/:id', {

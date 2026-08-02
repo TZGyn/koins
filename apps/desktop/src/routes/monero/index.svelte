@@ -24,8 +24,6 @@
 	let unlocking = $state(false)
 	let unlockError = $state('')
 
-	let initStarted = false
-
 	async function unlockWithPassword() {
 		if (unlocking || !walletPassword.trim()) return
 		unlocking = true
@@ -44,16 +42,6 @@
 		if (w.walletOpen && w.walletName) {
 			navigate('/monero/wallet/:name', {
 				params: { name: w.walletName },
-			})
-		}
-	})
-
-	$effect(() => {
-		if (!initStarted) {
-			initStarted = true
-			w.init().then(async () => {
-				if (w.accountType === 'monero') return
-				await w.login()
 			})
 		}
 	})

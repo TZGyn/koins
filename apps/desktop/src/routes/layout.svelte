@@ -31,6 +31,7 @@
 		if (!xrpWallet.ready) await xrpWallet.init()
 		if (!moneroWallet.ready) await moneroWallet.init()
 		await Promise.allSettled([
+			xrpWallet.login(),
 			xrpWallet.autoUnlock(),
 			moneroWallet.login(),
 		])

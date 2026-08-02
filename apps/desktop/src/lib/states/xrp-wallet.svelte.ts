@@ -13,7 +13,7 @@ export const xrpNetwork = {
 	explorerAddressUrl: 'https://xrpscan.com/account/',
 } as const
 
-export const XrpWallet = () => {
+export const createXrpWallet = () => {
 	let accountType = $state<'xrp' | null>(null)
 	let ready = $state(false)
 	let biometricAvailable = $state(false)
@@ -76,19 +76,24 @@ export const XrpWallet = () => {
 		biometricAvailable = ok === true
 	}
 
+	let initPromise: Promise<void> | null = null
 	const init = async () => {
-		if (!electrobun.rpc) return
-		const [walletList] = await tryCatch(
-			electrobun.rpc.request.xrpListWallets({}),
-		)
-		if (walletList) {
-			wallets = walletList
-			if (walletList.length > 0 && !currentWalletId) {
-				currentWalletId = walletList[0].id
+		if (initPromise) return initPromise
+		initPromise = (async () => {
+			if (!electrobun.rpc) return
+			const [walletList] = await tryCatch(
+				electrobun.rpc.request.xrpListWallets({}),
+			)
+			if (walletList) {
+				wallets = walletList
+				if (walletList.length > 0 && !currentWalletId) {
+					currentWalletId = walletList[0].id
+				}
 			}
-		}
-		await checkBiometric()
-		ready = true
+			await checkBiometric()
+			ready = true
+		})()
+		return initPromise
 	}
 
 	const login = async () => {
@@ -478,6 +483,17 @@ export const XrpWallet = () => {
 		clearSelection,
 		send,
 	}
+}
+
+// Singleton: calling XrpWallet() always returns the same instance, so no
+// component can ever create a second, disconnected wallet state.
+type XrpWalletStore = ReturnType<typeof createXrpWallet>
+
+let xrpWalletInstance: XrpWalletStore | null = null
+
+export const XrpWallet = (): XrpWalletStore => {
+	if (!xrpWalletInstance) xrpWalletInstance = createXrpWallet()
+	return xrpWalletInstance
 }
 
 export const xrpWallet = XrpWallet()
