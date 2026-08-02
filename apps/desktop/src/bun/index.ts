@@ -11,6 +11,7 @@ import { existsSync } from 'fs'
 import { getENV } from './lib/get-env'
 import { createMoneroHandlers } from './rpc/monero'
 import { createXrpHandlers } from './rpc/xrp'
+import { stop as walletStop } from './lib/monero'
 import type { MoneroWalletState } from './lib/monero'
 import { canPromptTouchID, promptTouchID } from './lib/biometric'
 import {
@@ -82,6 +83,24 @@ log(`index.html exists: ${existsSync(join(viewsRoot, 'mainview', 'index.html'))}
 const moneroState = {
 	manager: null as MoneroWalletState | null,
 	downloading: false,
+}
+
+async function stopWalletServers(): Promise<void> {
+	if (moneroState.manager) {
+		const manager = moneroState.manager
+		moneroState.manager = null
+		await walletStop(manager)
+	}
+}
+
+// Save the monero wallet and shut down wallet-rpc gracefully on app quit
+// (otherwise an orphaned process keeps the scan progress only in memory).
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+	process.on(signal, () => {
+		log(`${signal} received, stopping wallet servers...`)
+		void stopWalletServers().finally(() => process.exit(0))
+		setTimeout(() => process.exit(0), 5000).unref?.()
+	})
 }
 
 const rpc = BrowserView.defineRPC<RPC>({

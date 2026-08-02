@@ -12,6 +12,7 @@ const DEFAULT_DAEMON = 'xmr-node.cakewallet.com:18081'
 export type MoneroWalletState = {
 	wallet: MoneroWalletRpc | null
 	process: Bun.Subprocess | null
+	saveTimer: ReturnType<typeof setInterval> | null
 	rpcPort: number
 	rpcUser: string
 	rpcPassword: string
@@ -22,6 +23,7 @@ export function createMoneroWalletState(): MoneroWalletState {
 	return {
 		wallet: null,
 		process: null,
+		saveTimer: null,
 		rpcPort: 28084,
 		rpcUser: 'koins',
 		rpcPassword: 'koins-local-rpc',
@@ -97,17 +99,44 @@ export async function start(
 		)
 	state.daemonAddress = daemonAddress
 
-	// Kill any existing monero-wallet-rpc on the port (stale process from dev reloads)
+	// Kill any existing monero-wallet-rpc on the port (stale process from
+	// dev reloads or an unclean quit). Prefer SIGTERM so a live wallet gets
+	// a chance to save its scan progress before exiting.
 	try {
 		const proc = Bun.spawnSync(['lsof', '-ti', `tcp:${state.rpcPort}`], {
 			stdout: 'pipe',
 		})
 		const pids = proc.stdout.toString().trim().split('\n').filter(Boolean)
-		for (const pid of pids) {
-			try {
-				process.kill(Number(pid), 'SIGKILL')
-				console.log(`[monero] killed stale process ${pid} on port ${state.rpcPort}`)
-			} catch {}
+		if (pids.length) {
+			console.log(
+				`[monero] stale process(es) on port ${state.rpcPort}: ${pids.join(', ')}`,
+			)
+			for (const pid of pids) {
+				try {
+					process.kill(Number(pid), 'SIGTERM')
+				} catch {}
+			}
+			const deadline = Date.now() + 5000
+			while (Date.now() < deadline) {
+				const check = Bun.spawnSync(
+					['lsof', '-ti', `tcp:${state.rpcPort}`],
+					{ stdout: 'pipe' },
+				)
+				if (!check.stdout.toString().trim()) break
+				await new Promise((r) => setTimeout(r, 250))
+			}
+			const leftover = Bun.spawnSync(
+				['lsof', '-ti', `tcp:${state.rpcPort}`],
+				{ stdout: 'pipe' },
+			)
+			for (const pid of leftover.stdout.toString().trim().split('\n').filter(Boolean)) {
+				try {
+					process.kill(Number(pid), 'SIGKILL')
+					console.log(
+						`[monero] killed unresponsive process ${pid} on port ${state.rpcPort}`,
+					)
+				} catch {}
+			}
 		}
 	} catch {}
 
@@ -140,9 +169,29 @@ export async function start(
 				`[monero] wallet-rpc process exited with code ${exitCode}`,
 				error?.message ?? '',
 			)
+			if (state.saveTimer) {
+				clearInterval(state.saveTimer)
+				state.saveTimer = null
+			}
+			state.wallet = null
+			state.process = null
 		},
 	})
 	console.log(`[monero] wallet-rpc pid: ${state.process.pid}`)
+
+	// Auto-save the wallet every 60s so scan progress survives an
+	// unexpected kill (without `store`, the wallet file keeps its old
+	// refresh height and every restart resyncs from block 0).
+	state.saveTimer = setInterval(async () => {
+		try {
+			if (state.wallet) {
+				await rawRpc(state, 'store')
+				console.log(`[monero] wallet auto-saved`)
+			}
+		} catch (e) {
+			console.log(`[monero] wallet auto-save failed:`, e)
+		}
+	}, 60000)
 
 	const reader = (state.process!.stdout as ReadableStream<Uint8Array>).getReader()
 	;(async () => {
@@ -183,15 +232,39 @@ export async function start(
 
 export async function stop(state: MoneroWalletState) {
 	console.log(`[monero] stopping wallet manager...`)
+	if (state.saveTimer) {
+		clearInterval(state.saveTimer)
+		state.saveTimer = null
+	}
+	// Persist scan progress before shutting down.
+	try {
+		if (state.wallet) {
+			await rawRpc(state, 'store')
+			console.log(`[monero] wallet saved before stop`)
+		}
+	} catch (e) {
+		console.log(`[monero] wallet save before stop failed:`, e)
+	}
 	if (state.process) {
 		console.log(
-			`[monero] killing wallet-rpc process (pid ${state.process.pid})`,
+			`[monero] sending SIGTERM to wallet-rpc (pid ${state.process.pid})`,
 		)
 		state.process.kill()
+		await Promise.race([state.process.exited, sleep(3000)])
+		if (state.process.exitCode === null) {
+			console.log(
+				`[monero] wallet-rpc did not exit gracefully, sending SIGKILL`,
+			)
+			state.process.kill('SIGKILL')
+		}
 		state.process = null
 	}
 	state.wallet = null
 	console.log(`[monero] wallet manager stopped`)
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((r) => setTimeout(r, ms))
 }
 
 export async function createWallet(
