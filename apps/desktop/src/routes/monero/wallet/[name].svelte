@@ -24,6 +24,8 @@
 	import Send from '@lucide/svelte/icons/send'
 	import QrCodeIcon from '@lucide/svelte/icons/qr-code'
 	import Plus from '@lucide/svelte/icons/plus'
+	import Users from '@lucide/svelte/icons/users'
+	import Tags from '@lucide/svelte/icons/tags'
 	import Loader from '$lib/components/loader.svelte'
 	import QrCode from '$lib/components/qr.svelte'
 	import { navigate, route } from 'sv-router/generated'
@@ -97,9 +99,53 @@
 
 	let accountDialogOpen = $state(false)
 	let accountLabel = $state('')
+	let accountBusy = $state(false)
+	let accountError = $state('')
 	let subaddressDialogOpen = $state(false)
 	let subaddressAccountIndex = $state('')
 	let subaddressLabel = $state('')
+	let subaddressBusy = $state(false)
+	let subaddressError = $state('')
+
+	$effect(() => {
+		if (!subaddressAccountIndex && w.accounts.length > 0) {
+			subaddressAccountIndex = String(w.accounts[0].index)
+		}
+	})
+
+	async function handleCreateAccount() {
+		if (accountBusy) return
+		accountBusy = true
+		accountError = ''
+		try {
+			await w.createAccount(accountLabel || undefined)
+			accountDialogOpen = false
+			accountLabel = ''
+		} catch (e) {
+			accountError = e instanceof Error ? e.message : 'Failed to create account'
+		} finally {
+			accountBusy = false
+		}
+	}
+
+	async function handleCreateSubaddress() {
+		if (subaddressBusy || !subaddressAccountIndex) return
+		subaddressBusy = true
+		subaddressError = ''
+		try {
+			await w.createSubaddress(
+				parseInt(subaddressAccountIndex),
+				subaddressLabel || undefined,
+			)
+			subaddressDialogOpen = false
+			subaddressAccountIndex = ''
+			subaddressLabel = ''
+		} catch (e) {
+			subaddressError = e instanceof Error ? e.message : 'Failed to create subaddress'
+		} finally {
+			subaddressBusy = false
+		}
+	}
 
 	const walletName = $derived(route.params.name)
 
@@ -134,16 +180,27 @@
 	})
 
 	onMount(() => {
-		if (!w.walletOpen || w.walletName !== walletName) {
+		if (w.walletOpen && w.walletName === walletName) {
+			w.refresh()
+			electrobun.rpc?.request
+				.fetchMoneroPrice({})
+				.then((p) => (moneroPrice = p))
+		}
+	})
+
+	$effect(() => {
+		if (!w.opening && (!w.walletOpen || w.walletName !== walletName)) {
 			navigate('/monero')
 		}
-		w.refresh()
-		electrobun.rpc?.request
-			.fetchMoneroPrice({})
-			.then((p) => (moneroPrice = p))
 	})
 </script>
 
+{#if !w.walletOpen || w.walletName !== walletName}
+	<div class="flex flex-col items-center justify-center gap-3 py-24">
+		<Loader />
+		<p class="text-sm text-muted-foreground">Opening wallet...</p>
+	</div>
+{:else}
 <div class="space-y-6">
 	<div class="flex flex-col items-center py-2">
 		{#if w.loading}
@@ -340,14 +397,44 @@
 						</Dialog.Trigger>
 						<Dialog.Content>
 							<Dialog.Header>
-								<Dialog.Title>Create Account</Dialog.Title>
-								<Dialog.Description>Optional label for the new account</Dialog.Description>
+								<div class="flex items-center gap-3">
+									<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+										<Users size={16} class="text-muted-foreground" />
+									</div>
+									<div class="space-y-0.5">
+										<Dialog.Title>Create Account</Dialog.Title>
+										<Dialog.Description>
+											New account with its own balance and addresses
+										</Dialog.Description>
+									</div>
+								</div>
 							</Dialog.Header>
 							<div class="px-6 pb-4 space-y-3">
-								<Input placeholder="Account label (optional)" bind:value={accountLabel} />
+								<div class="space-y-1.5">
+									<label class="text-xs font-medium" for="account-label">Label</label>
+									<Input id="account-label" placeholder="Savings" bind:value={accountLabel} />
+									<p class="text-xs text-muted-foreground">
+										Optional — shown next to the account in your wallet
+									</p>
+								</div>
+								{#if accountError}
+									<p class="text-xs text-destructive">{accountError}</p>
+								{/if}
 								<div class="flex justify-end gap-2">
-									<Button variant="outline" size="sm" onclick={() => { accountDialogOpen = false; accountLabel = '' }}>Cancel</Button>
-									<Button size="sm" onclick={async () => { await w.createAccount(accountLabel || undefined); accountDialogOpen = false; accountLabel = '' }}>Create</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={accountBusy}
+										onclick={() => {
+											accountDialogOpen = false
+											accountLabel = ''
+											accountError = ''
+										}}>
+										Cancel
+									</Button>
+									<Button size="sm" disabled={accountBusy} onclick={handleCreateAccount}>
+										{accountBusy ? 'Creating...' : 'Create'}
+									</Button>
 								</div>
 							</div>
 						</Dialog.Content>
@@ -360,29 +447,66 @@
 						</Dialog.Trigger>
 						<Dialog.Content>
 							<Dialog.Header>
-								<Dialog.Title>Create Subaddress</Dialog.Title>
-								<Dialog.Description>Account index and optional label</Dialog.Description>
+								<div class="flex items-center gap-3">
+									<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+										<Tags size={16} class="text-muted-foreground" />
+									</div>
+									<div class="space-y-0.5">
+										<Dialog.Title>Create Subaddress</Dialog.Title>
+										<Dialog.Description>
+											Receiving address tied to an account
+										</Dialog.Description>
+									</div>
+								</div>
 							</Dialog.Header>
 							<div class="px-6 pb-4 space-y-3">
 								<div class="space-y-1.5">
-									<label class="text-xs font-medium">Account</label>
+									<label class="text-xs font-medium" for="subaddress-account">Account</label>
 									<Select type="single" bind:value={subaddressAccountIndex}>
 										<SelectTrigger>
-											{subaddressAccountIndex ? `Account ${subaddressAccountIndex}` : 'Select account'}
+											Account {subaddressAccountIndex}
 										</SelectTrigger>
 										<SelectContent>
 											{#each w.accounts as acct}
 												<SelectItem value={String(acct.index)}>
-													Account {acct.index}{acct.label ? ` - ${acct.label}` : ''}
+													Account {acct.index}{acct.label ? ` - ${acct.label}` : ''} ({atomicToXmr(acct.unlockedBalance)} XMR)
 												</SelectItem>
 											{/each}
 										</SelectContent>
 									</Select>
+									<p class="text-xs text-muted-foreground">
+										Where the subaddress belongs
+									</p>
 								</div>
-								<Input placeholder="Subaddress label (optional)" bind:value={subaddressLabel} />
+								<div class="space-y-1.5">
+									<label class="text-xs font-medium" for="subaddress-label">Label</label>
+									<Input id="subaddress-label" placeholder="Donations" bind:value={subaddressLabel} />
+									<p class="text-xs text-muted-foreground">
+										Optional — helps you track who sent you funds
+									</p>
+								</div>
+								{#if subaddressError}
+									<p class="text-xs text-destructive">{subaddressError}</p>
+								{/if}
 								<div class="flex justify-end gap-2">
-									<Button variant="outline" size="sm" onclick={() => { subaddressDialogOpen = false; subaddressAccountIndex = ''; subaddressLabel = '' }}>Cancel</Button>
-									<Button size="sm" disabled={!subaddressAccountIndex} onclick={async () => { await w.createSubaddress(parseInt(subaddressAccountIndex), subaddressLabel || undefined); subaddressDialogOpen = false; subaddressAccountIndex = ''; subaddressLabel = '' }}>Create</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={subaddressBusy}
+										onclick={() => {
+											subaddressDialogOpen = false
+											subaddressAccountIndex = ''
+											subaddressLabel = ''
+											subaddressError = ''
+										}}>
+										Cancel
+									</Button>
+									<Button
+										size="sm"
+										disabled={subaddressBusy || !subaddressAccountIndex}
+										onclick={handleCreateSubaddress}>
+										{subaddressBusy ? 'Creating...' : 'Create'}
+									</Button>
 								</div>
 							</div>
 						</Dialog.Content>
@@ -456,3 +580,4 @@
 		</CardContent>
 	</Card>
 </div>
+{/if}

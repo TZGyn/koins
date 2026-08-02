@@ -124,6 +124,17 @@
 	})
 
 	$effect(() => {
+		if (
+			moneroWallet.ready &&
+			!moneroWallet.walletOpen &&
+			!moneroWallet.opening &&
+			!moneroWallet.passwordRequired
+		) {
+			moneroWallet.login()
+		}
+	})
+
+	$effect(() => {
 		if (typeof window !== 'undefined') {
 			const handler = (event: ErrorEvent) => {
 				const msg = event.error?.stack || event.error?.message || event.message || 'unknown error'
@@ -181,7 +192,7 @@
 	{:else}
 		<div class="flex flex-col items-center pt-4 pb-2">
 			<p class="text-xs text-muted-foreground">Total Portfolio Value</p>
-			{#if loadingXrp || loadingXmr}
+			{#if loadingXrp || loadingXmr || moneroWallet.opening || (moneroWallet.wallets.length > 0 && !moneroWallet.walletOpen)}
 				<div class="mt-2 h-9 w-44 rounded-md bg-muted animate-pulse"></div>
 			{:else}
 				<p class="mt-1 text-3xl font-semibold tabular-nums">
@@ -240,9 +251,7 @@
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						{#if loadingXmr && !moneroWallet.walletOpen}
-							<div class="h-14 flex items-center"><Loader /></div>
-						{:else if moneroWallet.walletOpen}
+						{#if moneroWallet.walletOpen}
 							<p class="font-mono text-xl tabular-nums">{fmtBal(xmrBalance, 4)}</p>
 							{#if xmrPrice}
 								<p class="mt-0.5 text-sm text-muted-foreground tabular-nums">
@@ -252,8 +261,31 @@
 									${fmtUsd(parseFloat(xmrPrice) )} / XMR
 								</p>
 							{/if}
+						{:else if moneroWallet.passwordRequired && moneroWallet.wallets.length > 0}
+							<p class="text-sm text-muted-foreground py-3">Wallet locked — unlock to view balance</p>
 						{:else if moneroWallet.wallets.length > 0}
-							<p class="text-sm text-muted-foreground py-3">Open wallet to view balance</p>
+							<div class="h-14 flex items-center gap-2">
+								<Loader />
+								<p class="text-sm text-muted-foreground">Opening wallet...</p>
+							</div>
+						{:else if moneroWallet.opening}
+							<div class="h-14 flex items-center gap-2">
+								<Loader />
+								<p class="text-sm text-muted-foreground">Starting wallet server...</p>
+							</div>
+						{:else if moneroWallet.error}
+							<div class="py-3">
+								<p class="text-xs text-destructive break-words">{moneroWallet.error}</p>
+								<Button
+									variant="outline"
+									size="sm"
+									class="mt-2 gap-1.5"
+									onclick={() => moneroWallet.login()}>
+									Retry
+								</Button>
+							</div>
+						{:else if loadingXmr}
+							<div class="h-14 flex items-center"><Loader /></div>
 						{:else}
 							<Button
 								onclick={() => navigate('/monero')}
