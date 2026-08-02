@@ -127,20 +127,6 @@
 		}
 	})
 
-	// Self-heal: if the monero wallet list never got loaded (e.g. the server
-	// was starting while the dashboard rendered), retry login once.
-	$effect(() => {
-		if (
-			moneroWallet.ready &&
-			!moneroWallet.walletOpen &&
-			!moneroWallet.opening &&
-			moneroWallet.wallets.length === 0 &&
-			!moneroWallet.error
-		) {
-			void moneroWallet.login()
-		}
-	})
-
 	$effect(() => {
 		if (moneroWallet.walletOpen) {
 			fetchXmr()

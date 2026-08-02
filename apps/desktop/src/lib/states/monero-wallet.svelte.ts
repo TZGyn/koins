@@ -101,6 +101,11 @@ export const MoneroWallet = () => {
 				if (installed && !running) {
 					await start()
 					await checkStatus()
+				} else if (startInFlight) {
+					// a start is already in flight (e.g. triggered by init);
+					// wait for it so we don't call open before the server is up
+					await startInFlight.catch(() => {})
+					await checkStatus()
 				}
 				if (!running) {
 					error = 'Wallet server failed to start. Please try again.'
