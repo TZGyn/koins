@@ -1,6 +1,7 @@
 # Instructions for AI assistants
 
 - Never commit changes unless explicitly told to do so. Always ask first or wait for the user's command.
+- "Apply the changes" / "apply it" / "do it" does NOT mean commit. It means make the file changes. Before any commit (main repo, tap repo, anywhere), stop and ask for explicit permission, and list which files will be committed. Wait for a clear "yes" / "commit it" before running `git commit`.
 - Never manually edit `.router/router.ts` — sv-router auto-generates it from the filesystem. Just create the route file in the correct filesystem location.
 - Only commit when explicitly told to do so. When asked to commit, always write a single simple line commit message.
 - When asked to publish, always rebuild the DMG first (`bun run build:stable` from `apps/desktop`), wait for notarization to complete, verify with `xcrun stapler validate`, then publish the fresh DMG. Never publish a stale build.

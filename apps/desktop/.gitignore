@@ -27,3 +27,6 @@ dist-ssr
 artifacts
 .env
 .env.local
+
+# compiled native helper (build artifact; source is biometric-helper.swift)
+src/bun/native/biometric-helper
