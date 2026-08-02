@@ -151,25 +151,30 @@ export function createMoneroHandlers(state: {
 			console.log('[rpc] moneroGetBalance')
 			if (!state.manager)
 				throw new Error('Monero wallet RPC not started')
-			const { balance, unlocked } = await walletGetBalance(
-				state.manager,
-			)
-			const address = await walletGetAddress(state.manager)
-			const height = await walletGetHeight(state.manager)
-			const daemonHeight = await walletGetDaemonHeight(state.manager)
-			console.log('[rpc] balance:', {
-				balance: balance.toString(),
-				unlocked: unlocked.toString(),
-				address,
-				height,
-				daemonHeight,
-			})
-			return {
-				balance: balance.toString(),
-				unlocked: unlocked.toString(),
-				address,
-				height,
-				daemonHeight,
+			try {
+				const { balance, unlocked } = await walletGetBalance(
+					state.manager,
+				)
+				const address = await walletGetAddress(state.manager)
+				const height = await walletGetHeight(state.manager)
+				const daemonHeight = await walletGetDaemonHeight(state.manager)
+				console.log('[rpc] balance:', {
+					balance: balance.toString(),
+					unlocked: unlocked.toString(),
+					address,
+					height,
+					daemonHeight,
+				})
+				return {
+					balance: balance.toString(),
+					unlocked: unlocked.toString(),
+					address,
+					height,
+					daemonHeight,
+				}
+			} catch (e) {
+				logError('[rpc] moneroGetBalance failed', e)
+				throw e
 			}
 		},
 		moneroGetTransactions: async ({
@@ -180,12 +185,17 @@ export function createMoneroHandlers(state: {
 			console.log('[rpc] moneroGetTransactions', { accountIndex })
 			if (!state.manager)
 				throw new Error('Monero wallet RPC not started')
-			const txs = await walletGetTransactions(
-				state.manager,
-				accountIndex,
-			)
-			console.log(`[rpc] moneroGetTransactions: ${txs.length} txs`)
-			return txs
+			try {
+				const txs = await walletGetTransactions(
+					state.manager,
+					accountIndex,
+				)
+				console.log(`[rpc] moneroGetTransactions: ${txs.length} txs`)
+				return txs
+			} catch (e) {
+				logError('[rpc] moneroGetTransactions failed', e)
+				throw e
+			}
 		},
 		moneroWalletStatus: async () => {
 			if (!state.manager) {

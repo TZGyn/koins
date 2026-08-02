@@ -1,5 +1,7 @@
 import {
 	electrobun,
+	frontendLog,
+	frontendLogError,
 	type MoneroTxEntry,
 	type MoneroAccountEntry,
 	type MoneroSendResult,
@@ -406,6 +408,8 @@ export const MoneroWallet = () => {
 		refreshInFlight = (async () => {
 			loading = true
 			let failed = false
+			const wasSyncing = syncing
+			let lastError: unknown = null
 			try {
 				const [bal, balErr] = await tryCatch(
 					rpcTimeout(
@@ -414,7 +418,10 @@ export const MoneroWallet = () => {
 						'moneroGetBalance',
 					),
 				)
-				if (balErr) failed = true
+				if (balErr) {
+					failed = true
+					lastError = balErr
+				}
 				if (bal) {
 					balAtomic = bal.balance
 					unlockedAtomic = bal.unlocked
@@ -431,21 +438,38 @@ export const MoneroWallet = () => {
 						'moneroGetTransactions',
 					),
 				)
-				if (txErr) failed = true
+				if (txErr) {
+					failed = true
+					lastError = txErr
+				}
 				txs = result ?? []
 				const ok = await fetchAccounts()
-				if (!ok) failed = true
+				if (!ok) {
+					failed = true
+					lastError = new Error('moneroGetAccounts failed')
+				}
 				if (failed) {
 					// The wallet-rpc is likely busy syncing; keep the stale
 					// balance and retry shortly instead of showing an error.
 					syncing = true
 					scheduleSyncRetry()
+					frontendLogError(
+						`monero refresh failed (height ${height}/${daemonHeight})`,
+						lastError,
+					)
 				} else {
+					if (wasSyncing) {
+						frontendLog(`monero sync complete at height ${height}`)
+					}
 					syncing = false
 				}
 			} catch (e) {
 				syncing = true
 				scheduleSyncRetry()
+				frontendLogError(
+					`monero refresh failed (height ${height}/${daemonHeight})`,
+					e,
+				)
 			} finally {
 				loading = false
 				refreshInFlight = null
