@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { moneroWallet } from '$lib/states/monero-wallet.svelte.js'
 	import { xrpWallet } from '$lib/states/xrp-wallet.svelte.js'
-	import { electrobun } from '$lib/electrobun.js'
 	import { navigate } from 'sv-router/generated'
 	import { onMount } from 'svelte'
 	import {
@@ -17,29 +16,19 @@
 	import Loader from '$lib/components/loader.svelte'
 	import { frontendLog, frontendLogError } from '$lib/electrobun.js'
 
-	let xrpPrice = $state<string | null>(null)
-	let xmrPrice = $state<string | null>(null)
-	let xrpBalances = $state<Record<string, { balance: number; funded: boolean }>>({})
-	let loadingXrp = $state(true)
-	let loadingXmr = $state(true)
-	let fetchXrpInFlight = false
-
 	let feError = $state<string | null>(null)
 
-	const usd = (amount: string, price: string | null) =>
-		price ? parseFloat(amount) * parseFloat(price) : 0
-
 	const xrpTotalUsd = $derived.by(() => {
-		const price = xrpPrice
+		const p = xrpWallet.price
 		return xrpWallet.wallets.reduce((sum, w) => {
-			const b = xrpBalances[w.address]?.balance ?? 0
-			return sum + (price ? b * parseFloat(price) : 0)
+			const b = xrpWallet.balances[w.address]?.balance ?? 0
+			return sum + (p ? b * parseFloat(p) : 0)
 		}, 0)
 	})
 
 	const xrpTotalBalance = $derived.by(() =>
 		xrpWallet.wallets.reduce((sum, w) => {
-			return sum + (xrpBalances[w.address]?.balance ?? 0)
+			return sum + (xrpWallet.balances[w.address]?.balance ?? 0)
 		}, 0),
 	)
 
@@ -47,8 +36,8 @@
 		moneroWallet.walletOpen ? parseFloat(moneroWallet.balance || '0') : 0,
 	)
 	const xmrTotalUsd = $derived(
-		moneroWallet.walletOpen && xmrPrice
-			? xmrBalance * parseFloat(xmrPrice)
+		moneroWallet.walletOpen && moneroWallet.price
+			? xmrBalance * parseFloat(moneroWallet.price)
 			: 0,
 	)
 
@@ -70,66 +59,23 @@
 			maximumFractionDigits: dp,
 		})
 
-	async function fetchXrp() {
-		if (fetchXrpInFlight) return
-		fetchXrpInFlight = true
-		loadingXrp = true
-		const rpc = electrobun.rpc
-		if (!rpc) {
-			loadingXrp = false
-			fetchXrpInFlight = false
-			return
-		}
-		try {
-			const p = await rpc.request.fetchXrpPrice({})
-			if (p) xrpPrice = p.usd
-		} catch { /* ignore */ }
-		await Promise.allSettled(
-			xrpWallet.wallets.map(async (w) => {
-				const res = await rpc.request.xrpGetBalance({
-					address: w.address,
-				})
-				xrpBalances[w.address] = {
-					balance: parseFloat(res.balance),
-					funded: res.funded,
-				}
-			}),
-		)
-		loadingXrp = false
-		fetchXrpInFlight = false
-	}
-
-	async function fetchXmr() {
-		loadingXmr = true
-		const rpc = electrobun.rpc
-		if (!rpc) {
-			loadingXmr = false
-			return
-		}
-		try {
-			const p = await rpc.request.fetchMoneroPrice({})
-			xmrPrice = p?.usd ?? null
-		} catch { /* ignore */ }
-		loadingXmr = false
-	}
-
 	onMount(() => {
 		frontendLog('dashboard mounted')
 		moneroWallet.init().catch((e) => frontendLogError('moneroWallet.init() failed', e))
 		xrpWallet.init().catch((e) => frontendLogError('xrpWallet.init() failed', e))
-		fetchXmr()
 	})
 
-	// Wait for the XRP wallet list to load, then fetch balances.
+	// Balances live in the stores so they survive navigation; the effects
+	// only trigger background refetches.
 	$effect(() => {
 		if (xrpWallet.ready && xrpWallet.wallets.length > 0) {
-			fetchXrp()
+			xrpWallet.fetchBalances()
 		}
 	})
 
 	$effect(() => {
 		if (moneroWallet.walletOpen) {
-			fetchXmr()
+			moneroWallet.fetchPrice()
 		}
 	})
 
@@ -191,7 +137,7 @@
 	{:else}
 		<div class="flex flex-col items-center pt-4 pb-2">
 			<p class="text-xs text-muted-foreground">Total Portfolio Value</p>
-			{#if loadingXrp || loadingXmr || moneroWallet.opening || (moneroWallet.wallets.length > 0 && !moneroWallet.walletOpen)}
+			{#if moneroWallet.opening || (moneroWallet.wallets.length > 0 && !moneroWallet.walletOpen) || (xrpWallet.wallets.length > 0 && !xrpWallet.price) || (moneroWallet.walletOpen && !moneroWallet.price)}
 				<div class="mt-2 h-9 w-44 rounded-md bg-muted animate-pulse"></div>
 			{:else}
 				<p class="mt-1 text-3xl font-semibold tabular-nums">
@@ -215,16 +161,16 @@
 						</CardDescription>
 					</CardHeader>
 					<CardContent class="flex flex-1 flex-col justify-center">
-						{#if !xrpWallet.ready || loadingXrp || (xrpWallet.wallets.length > 0 && Object.keys(xrpBalances).length === 0)}
+						{#if !xrpWallet.ready || (xrpWallet.wallets.length > 0 && Object.keys(xrpWallet.balances).length === 0)}
 							<div class="h-14 flex items-center"><Loader /></div>
 						{:else}
 							<p class="font-mono text-xl tabular-nums">{fmtBal(xrpTotalBalance)}</p>
-							{#if xrpPrice}
+							{#if xrpWallet.price}
 								<p class="mt-0.5 text-sm text-muted-foreground tabular-nums">
 									${fmtUsd(xrpTotalUsd)}
 								</p>
 								<p class="mt-2 text-xs text-muted-foreground">
-									${fmtUsd(parseFloat(xrpPrice) )} / XRP
+									${fmtUsd(parseFloat(xrpWallet.price) )} / XRP
 								</p>
 							{/if}
 						{/if}
@@ -250,20 +196,20 @@
 						</CardDescription>
 					</CardHeader>
 					<CardContent class="flex flex-1 flex-col justify-center">
-					{#if moneroWallet.walletOpen}
-						<p class="font-mono text-xl tabular-nums">{fmtBal(xmrBalance, 4)}</p>
-						{#if moneroWallet.syncing}
-							<p class="mt-0.5 text-xs text-muted-foreground">Syncing…</p>
-						{:else if xmrPrice}
-							<p class="mt-0.5 text-sm text-muted-foreground tabular-nums">
-								${fmtUsd(xmrTotalUsd)}
-							</p>
-						{/if}
-						{#if xmrPrice}
-							<p class="mt-2 text-xs text-muted-foreground">
-								${fmtUsd(parseFloat(xmrPrice) )} / XMR
-							</p>
-						{/if}
+						{#if moneroWallet.walletOpen}
+							<p class="font-mono text-xl tabular-nums">{fmtBal(xmrBalance, 4)}</p>
+							{#if moneroWallet.syncing}
+								<p class="mt-0.5 text-xs text-muted-foreground">Syncing…</p>
+							{:else if moneroWallet.price}
+								<p class="mt-0.5 text-sm text-muted-foreground tabular-nums">
+									${fmtUsd(xmrTotalUsd)}
+								</p>
+							{/if}
+							{#if moneroWallet.price}
+								<p class="mt-2 text-xs text-muted-foreground">
+									${fmtUsd(parseFloat(moneroWallet.price) )} / XMR
+								</p>
+							{/if}
 						{:else if moneroWallet.passwordRequired && moneroWallet.wallets.length > 0}
 							<p class="text-sm text-muted-foreground py-3">Wallet locked — unlock to view balance</p>
 						{:else if moneroWallet.opening}
@@ -289,8 +235,6 @@
 								<Loader />
 								<p class="text-sm text-muted-foreground">Opening wallet...</p>
 							</div>
-						{:else if loadingXmr}
-							<div class="h-14 flex items-center"><Loader /></div>
 						{:else}
 							<Button
 								onclick={() => navigate('/monero')}

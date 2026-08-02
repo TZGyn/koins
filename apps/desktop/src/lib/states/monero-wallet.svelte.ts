@@ -56,6 +56,8 @@ export const MoneroWallet = () => {
 	let refreshInFlight: Promise<void> | null = null
 	let syncing = $state(false)
 	let syncRetryTimer: ReturnType<typeof setTimeout> | null = null
+	let price = $state<string | null>(null)
+	let priceInFlight = false
 
 	const rpcTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
 		new Promise<T>((resolve, reject) => {
@@ -478,6 +480,18 @@ export const MoneroWallet = () => {
 		return refreshInFlight
 	}
 
+	const fetchPrice = async () => {
+		const rpc = electrobun.rpc
+		if (!rpc || priceInFlight) return
+		priceInFlight = true
+		try {
+			const [p] = await tryCatch(rpc.request.fetchMoneroPrice({}))
+			if (p) price = p.usd
+		} finally {
+			priceInFlight = false
+		}
+	}
+
 	const send = async (
 		address: string,
 		amountAtomic: string,
@@ -597,6 +611,9 @@ export const MoneroWallet = () => {
 		get syncing() {
 			return syncing
 		},
+		get price() {
+			return price
+		},
 		get error() {
 			return error
 		},
@@ -646,6 +663,7 @@ export const MoneroWallet = () => {
 		autoUnlock,
 		unlockWallet,
 		refresh,
+		fetchPrice,
 		send,
 		sendAll,
 		createAccount,

@@ -29,6 +29,9 @@ export const XrpWallet = () => {
 	let loading = $state(false)
 	let error = $state('')
 	let wallets = $state<XrpWalletInfo[]>([])
+	let balances = $state<Record<string, { balance: number; funded: boolean }>>({})
+	let balancesLoading = $state(false)
+	let fetchBalancesInFlight = false
 	let currentWalletId = $state<string | null>(null)
 	let currentPasswordHash = $state<string | null>(null)
 
@@ -319,6 +322,34 @@ export const XrpWallet = () => {
 		})()
 	}
 
+	const fetchBalances = async () => {
+		const rpc = electrobun.rpc
+		if (!rpc || fetchBalancesInFlight) return
+		if (wallets.length === 0) return
+		fetchBalancesInFlight = true
+		balancesLoading = true
+		try {
+			const [p] = await tryCatch(rpc.request.fetchXrpPrice({}))
+			if (p) price = p.usd
+			await Promise.allSettled(
+				wallets.map(async (w) => {
+					const [res] = await tryCatch(
+						rpc.request.xrpGetBalance({ address: w.address }),
+					)
+					if (res) {
+						balances[w.address] = {
+							balance: parseFloat(res.balance),
+							funded: res.funded,
+						}
+					}
+				}),
+			)
+		} finally {
+			balancesLoading = false
+			fetchBalancesInFlight = false
+		}
+	}
+
 	const send = async (
 		to: string,
 		amount: string,
@@ -399,6 +430,12 @@ export const XrpWallet = () => {
 		get wallets() {
 			return wallets
 		},
+		get balances() {
+			return balances
+		},
+		get balancesLoading() {
+			return balancesLoading
+		},
 		get currentWalletId() {
 			return currentWalletId
 		},
@@ -424,6 +461,7 @@ export const XrpWallet = () => {
 		login,
 		logout,
 		refresh,
+		fetchBalances,
 		createWallet,
 		importWallet,
 		lock,
