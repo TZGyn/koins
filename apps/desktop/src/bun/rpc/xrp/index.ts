@@ -10,6 +10,7 @@ import {
 	getFee,
 } from '../../lib/xrp'
 import type { XrpWalletInfo } from '../../../lib/rpc-schema'
+import { getSecret, setSecret, deleteSecret } from '../../lib/secrets-cache'
 
 const SERVICE = 'koins'
 
@@ -30,7 +31,7 @@ export function createXrpHandlers() {
 			const { address, seed } = generateWallet()
 			const id = crypto.randomUUID()
 			const vaultKey = `xrp_seed_${id}`
-			await Bun.secrets.set({ service: SERVICE, name: vaultKey, value: seed })
+			await setSecret(SERVICE, vaultKey, seed)
 			const wallets = await getXrpWalletList()
 			const createdAt = new Date().toISOString()
 			const info: XrpWalletInfo = {
@@ -58,11 +59,7 @@ export function createXrpHandlers() {
 			const { address } = walletFromSecret(secret)
 			const id = crypto.randomUUID()
 			const vaultKey = `xrp_seed_${id}`
-			await Bun.secrets.set({
-				service: SERVICE,
-				name: vaultKey,
-				value: secret.trim(),
-			})
+			await setSecret(SERVICE, vaultKey, secret.trim())
 			const wallets = await getXrpWalletList()
 			const createdAt = new Date().toISOString()
 			const info: XrpWalletInfo = {
@@ -83,15 +80,15 @@ export function createXrpHandlers() {
 			const wallet = wallets.find((w) => w.id === id)
 			if (!wallet) throw new Error('Wallet not found')
 			await Promise.all([
-				Bun.secrets.delete({ service: SERVICE, name: wallet.vaultKey }),
-				Bun.secrets.delete({ service: SERVICE, name: `xrp_auth_${id}` }),
+				deleteSecret(SERVICE, wallet.vaultKey),
+				deleteSecret(SERVICE, `xrp_auth_${id}`),
 			])
 			await saveXrpWalletList(wallets.filter((w) => w.id !== id))
 			console.log('[rpc] xrpDeleteWallet complete')
 		},
 		xrpGetSeed: async ({ vaultKey }: { vaultKey: string }) => {
 			console.log('[rpc] xrpGetSeed:', vaultKey)
-			const seed = await Bun.secrets.get({ service: SERVICE, name: vaultKey })
+			const seed = await getSecret(SERVICE, vaultKey)
 			if (!seed) throw new Error('Seed not found in keychain')
 			return seed
 		},

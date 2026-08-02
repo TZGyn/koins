@@ -11,6 +11,7 @@ import type {
 	XrpTxEntry,
 	XrpWalletInfo,
 } from '../../../lib/rpc-schema'
+import { getSecret, setSecret } from '../secrets-cache'
 
 const SERVER = 'wss://s1.ripple.com'
 const RIPPLE_EPOCH = 946684800
@@ -54,7 +55,7 @@ export function walletForSigning(secret: string): Wallet {
 }
 
 export async function getXrpWalletList(): Promise<XrpWalletInfo[]> {
-	const raw = await Bun.secrets.get({ service: SERVICE, name: WALLET_LIST_KEY })
+	const raw = await getSecret(SERVICE, WALLET_LIST_KEY)
 	if (!raw) return []
 	try {
 		return JSON.parse(raw)
@@ -66,11 +67,7 @@ export async function getXrpWalletList(): Promise<XrpWalletInfo[]> {
 export async function saveXrpWalletList(
 	wallets: XrpWalletInfo[],
 ): Promise<void> {
-	await Bun.secrets.set({
-		service: SERVICE,
-		name: WALLET_LIST_KEY,
-		value: JSON.stringify(wallets),
-	})
+	await setSecret(SERVICE, WALLET_LIST_KEY, JSON.stringify(wallets))
 }
 
 export async function getBalance(address: string): Promise<XrpBalance> {

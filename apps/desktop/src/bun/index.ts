@@ -13,7 +13,13 @@ import { createMoneroHandlers } from './rpc/monero'
 import { createXrpHandlers } from './rpc/xrp'
 import type { MoneroWalletState } from './lib/monero'
 import { canPromptTouchID, promptTouchID } from './lib/biometric'
-import { getXrpWalletList } from './lib/xrp'
+import {
+	getSecret,
+	setSecret,
+	deleteSecret,
+	clearSecretsCache,
+	VAULT_SERVICE,
+} from './lib/secrets-cache'
 import type { RPC } from '../lib/rpc-schema'
 import { log } from './lib/logger'
 
@@ -89,23 +95,8 @@ const rpc = BrowserView.defineRPC<RPC>({
 rpc.setRequestHandler({
 	resetApp: async () => {
 		try {
-			const wallets = await getXrpWalletList()
-			await Promise.all([
-				Bun.secrets.delete({
-					service: 'koins',
-					name: 'xrp_wallets',
-				}),
-				...wallets.flatMap((w) => [
-					Bun.secrets.delete({
-						service: 'koins',
-						name: w.vaultKey,
-					}),
-					Bun.secrets.delete({
-						service: 'koins',
-						name: `xrp_auth_${w.id}`,
-					}),
-				]),
-			])
+			await deleteSecret(VAULT_SERVICE, 'vault')
+			clearSecretsCache()
 			console.log('[rpc] resetApp complete')
 			return true
 		} catch (e) {
@@ -131,10 +122,10 @@ rpc.setRequestHandler({
 		}
 	},
 	getSecret: async ({ name, service }) => {
-		return await Bun.secrets.get({ name, service })
+		return await getSecret(service, name)
 	},
 	setSecret: async ({ name, service, value }) => {
-		await Bun.secrets.set({ name, service, value })
+		await setSecret(service, name, value)
 	},
 	openExternal: async ({ url }) => {
 		Utils.openExternal(url)
