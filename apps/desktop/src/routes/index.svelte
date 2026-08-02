@@ -124,17 +124,6 @@
 	})
 
 	$effect(() => {
-		if (
-			moneroWallet.ready &&
-			!moneroWallet.walletOpen &&
-			!moneroWallet.opening &&
-			!moneroWallet.passwordRequired
-		) {
-			moneroWallet.login()
-		}
-	})
-
-	$effect(() => {
 		if (typeof window !== 'undefined') {
 			const handler = (event: ErrorEvent) => {
 				const msg = event.error?.stack || event.error?.message || event.message || 'unknown error'
@@ -263,15 +252,12 @@
 							{/if}
 						{:else if moneroWallet.passwordRequired && moneroWallet.wallets.length > 0}
 							<p class="text-sm text-muted-foreground py-3">Wallet locked — unlock to view balance</p>
-						{:else if moneroWallet.wallets.length > 0}
-							<div class="h-14 flex items-center gap-2">
-								<Loader />
-								<p class="text-sm text-muted-foreground">Opening wallet...</p>
-							</div>
 						{:else if moneroWallet.opening}
 							<div class="h-14 flex items-center gap-2">
 								<Loader />
-								<p class="text-sm text-muted-foreground">Starting wallet server...</p>
+								<p class="text-sm text-muted-foreground">
+									{moneroWallet.wallets.length > 0 ? 'Opening wallet...' : 'Starting wallet server...'}
+								</p>
 							</div>
 						{:else if moneroWallet.error}
 							<div class="py-3">
@@ -283,6 +269,11 @@
 									onclick={() => moneroWallet.login()}>
 									Retry
 								</Button>
+							</div>
+						{:else if moneroWallet.wallets.length > 0}
+							<div class="h-14 flex items-center gap-2">
+								<Loader />
+								<p class="text-sm text-muted-foreground">Opening wallet...</p>
 							</div>
 						{:else if loadingXmr}
 							<div class="h-14 flex items-center"><Loader /></div>
