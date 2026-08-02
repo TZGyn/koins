@@ -51,6 +51,27 @@ export const MoneroWallet = () => {
 	let passwordRequired = $state(false)
 	let startInFlight: Promise<{ running: boolean; connected: boolean }> | null = null
 	let loginInFlight: Promise<void> | null = null
+	let refreshInFlight: Promise<void> | null = null
+	let syncing = $state(false)
+	let syncRetryTimer: ReturnType<typeof setTimeout> | null = null
+
+	const rpcTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+		new Promise<T>((resolve, reject) => {
+			const timer = setTimeout(
+				() => reject(new Error(`${label} timed out after ${ms}ms`)),
+				ms,
+			)
+			promise.then(
+				(v) => {
+					clearTimeout(timer)
+					resolve(v)
+				},
+				(e) => {
+					clearTimeout(timer)
+					reject(e)
+				},
+			)
+		})
 
 	const beginOpening = () => {
 		openingDepth += 1
@@ -203,14 +224,22 @@ export const MoneroWallet = () => {
 	const checkStatus = async () => {
 		if (!electrobun.rpc) return
 		const [binStatus] = await tryCatch(
-			electrobun.rpc.request.moneroBinaryStatus({}),
+			rpcTimeout(
+				electrobun.rpc.request.moneroBinaryStatus({}),
+				15000,
+				'moneroBinaryStatus',
+			),
 		)
 		if (binStatus) {
 			installed = binStatus.installed
 			downloading = binStatus.downloading
 		}
 		const [status] = await tryCatch(
-			electrobun.rpc.request.moneroWalletStatus({}),
+			rpcTimeout(
+				electrobun.rpc.request.moneroWalletStatus({}),
+				30000,
+				'moneroWalletStatus',
+			),
 		)
 		if (status) {
 			running = status.running
@@ -362,32 +391,67 @@ export const MoneroWallet = () => {
 		if (remember) await moneroStorePassword(target, password)
 	}
 
+	const scheduleSyncRetry = () => {
+		if (syncRetryTimer) clearTimeout(syncRetryTimer)
+		syncRetryTimer = setTimeout(async () => {
+			syncRetryTimer = null
+			if (walletOpen && !loading) await refresh()
+		}, 15000)
+	}
+
 	const refresh = async () => {
-		if (!electrobun.rpc) return
-		loading = true
-		try {
-			const [bal] = await tryCatch(
-				electrobun.rpc.request.moneroGetBalance({}),
-			)
-			if (bal) {
-				balAtomic = bal.balance
-				unlockedAtomic = bal.unlocked
-				address = bal.address
-				height = bal.height
-				daemonHeight = bal.daemonHeight
+		const rpc = electrobun.rpc
+		if (!rpc) return
+		if (refreshInFlight) return refreshInFlight
+		refreshInFlight = (async () => {
+			loading = true
+			let failed = false
+			try {
+				const [bal, balErr] = await tryCatch(
+					rpcTimeout(
+						rpc.request.moneroGetBalance({}),
+						20000,
+						'moneroGetBalance',
+					),
+				)
+				if (balErr) failed = true
+				if (bal) {
+					balAtomic = bal.balance
+					unlockedAtomic = bal.unlocked
+					address = bal.address
+					height = bal.height
+					daemonHeight = bal.daemonHeight
+				}
+				const [result, txErr] = await tryCatch(
+					rpcTimeout(
+						rpc.request.moneroGetTransactions({
+							accountIndex: selectedAccountIndex,
+						}),
+						20000,
+						'moneroGetTransactions',
+					),
+				)
+				if (txErr) failed = true
+				txs = result ?? []
+				const ok = await fetchAccounts()
+				if (!ok) failed = true
+				if (failed) {
+					// The wallet-rpc is likely busy syncing; keep the stale
+					// balance and retry shortly instead of showing an error.
+					syncing = true
+					scheduleSyncRetry()
+				} else {
+					syncing = false
+				}
+			} catch (e) {
+				syncing = true
+				scheduleSyncRetry()
+			} finally {
+				loading = false
+				refreshInFlight = null
 			}
-			const [result] = await tryCatch(
-				electrobun.rpc.request.moneroGetTransactions({
-					accountIndex: selectedAccountIndex,
-				}),
-			)
-			txs = result ?? []
-			await fetchAccounts()
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Monero refresh failed'
-		} finally {
-			loading = false
-		}
+		})()
+		return refreshInFlight
 	}
 
 	const send = async (
@@ -505,6 +569,9 @@ export const MoneroWallet = () => {
 		},
 		get passwordRequired() {
 			return passwordRequired
+		},
+		get syncing() {
+			return syncing
 		},
 		get error() {
 			return error

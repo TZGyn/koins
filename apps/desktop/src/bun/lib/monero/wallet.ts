@@ -41,13 +41,40 @@ function rpcConnection(
 	})
 }
 
+function withTimeout<T>(
+	promise: Promise<T>,
+	ms: number,
+	label: string,
+): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const timer = setTimeout(
+			() => reject(new Error(`${label} timed out after ${ms}ms`)),
+			ms,
+		)
+		promise.then(
+			(v) => {
+				clearTimeout(timer)
+				resolve(v)
+			},
+			(e) => {
+				clearTimeout(timer)
+				reject(e)
+			},
+		)
+	})
+}
+
 async function rawRpc(
 	state: MoneroWalletState,
 	method: string,
 	params: Record<string, any> = {},
 ): Promise<any> {
 	const conn = rpcConnection(state)
-	const res = await conn.sendJsonRequest(method, params)
+	const res = await withTimeout(
+		conn.sendJsonRequest(method, params),
+		30000,
+		`wallet-rpc ${method}`,
+	)
 	if (res?.error)
 		throw new Error(res.error.message || JSON.stringify(res.error))
 	return res?.result
@@ -62,7 +89,11 @@ async function waitForRpc(
 	while (Date.now() - start < timeoutMs) {
 		try {
 			const conn = rpcConnection(state)
-			const res = await conn.sendJsonRequest('get_version', {})
+			const res = await withTimeout(
+				conn.sendJsonRequest('get_version', {}),
+				5000,
+				'wallet-rpc probe',
+			)
 			if (res?.result?.version) {
 				console.log(`[monero] RPC ready after ${Date.now() - start}ms`)
 				return
@@ -290,7 +321,11 @@ export async function createWallet(
 		language: 'English',
 	})
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const address = await state.wallet.getAddress(0, 0)
+	const address = (await withTimeout(
+		state.wallet.getAddress(0, 0),
+		30000,
+		'wallet get_address',
+	)) as string
 	console.log(`[monero] wallet created: ${name} -> ${address}`)
 	return { mnemonic: result.mnemonic, address }
 }
@@ -329,7 +364,7 @@ export async function openWallet(
 		state.wallet = await connectClient(state)
 	}
 	try {
-		await state.wallet.openWallet(name, password)
+		await withTimeout(state.wallet.openWallet(name, password), 30000, `open_wallet ${name}`)
 		log(`[monero] wallet opened: ${name}`)
 	} catch (e) {
 		logError(`[monero] wallet open failed (${name})`, e)
@@ -348,8 +383,16 @@ export async function getBalance(
 	state: MoneroWalletState,
 ): Promise<{ balance: bigint; unlocked: bigint }> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const balance = (await state.wallet.getBalance()) as bigint
-	const unlocked = (await state.wallet.getUnlockedBalance()) as bigint
+	const balance = (await withTimeout(
+		state.wallet.getBalance(),
+		30000,
+		'wallet get_balance',
+	)) as bigint
+	const unlocked = (await withTimeout(
+		state.wallet.getUnlockedBalance(),
+		30000,
+		'wallet get_unlocked_balance',
+	)) as bigint
 	console.log(`[monero] balance: ${balance} (unlocked: ${unlocked})`)
 	return { balance, unlocked }
 }
@@ -360,9 +403,10 @@ export async function getAddress(
 	subIdx = 0,
 ): Promise<string> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const address = (await state.wallet.getAddress(
-		accountIdx,
-		subIdx,
+	const address = (await withTimeout(
+		state.wallet.getAddress(accountIdx, subIdx),
+		30000,
+		'wallet get_address',
 	)) as string
 	console.log(`[monero] address: ${address}`)
 	return address
@@ -398,7 +442,11 @@ export async function getAccounts(
 	state: MoneroWalletState,
 ): Promise<any[]> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const accounts = (await state.wallet.getAccounts(true)) as any[]
+	const accounts = (await withTimeout(
+		state.wallet.getAccounts(true),
+		30000,
+		'wallet get_accounts',
+	)) as any[]
 	console.log(`[monero] accounts: ${accounts?.length ?? 0} returned`)
 	if (accounts?.length) {
 		for (const acct of accounts) {
@@ -543,7 +591,11 @@ export async function getHeight(
 	state: MoneroWalletState,
 ): Promise<number> {
 	if (!state.wallet) throw new Error('Wallet RPC not started')
-	const height = (await state.wallet.getHeight()) as number
+	const height = (await withTimeout(
+		state.wallet.getHeight(),
+		30000,
+		'wallet get_height',
+	)) as number
 	console.log(`[monero] wallet height: ${height}`)
 	return height
 }
@@ -587,7 +639,11 @@ export async function getDaemonHeight(
 		const daemon = await connectToDaemonRpc(
 			`http://${state.daemonAddress}`,
 		)
-		const height = (await daemon.getHeight()) as number
+		const height = (await withTimeout(
+			daemon.getHeight(),
+		15000,
+			'daemon get_height',
+		)) as number
 		console.log(`[monero] daemon height: ${height}`)
 		return height
 	} catch (e) {
@@ -665,9 +721,13 @@ export async function isWalletOpen(
 ): Promise<boolean> {
 	if (!state.wallet) return false
 	try {
-		await state.wallet.getHeight()
+		await withTimeout(state.wallet.getHeight(), 8000, 'wallet get_height')
 		return true
-	} catch {
+	} catch (e) {
+		// A timeout usually means the wallet-rpc is busy syncing, not that
+		// the wallet is closed. Assume still-open so the UI doesn't flip to
+		// "closed" and try to re-open an already-open wallet.
+		if (e instanceof Error && e.message.includes('timed out')) return true
 		return false
 	}
 }
@@ -677,10 +737,12 @@ export async function isConnected(
 ): Promise<boolean> {
 	if (!state.wallet) return false
 	try {
-		const daemon = await connectToDaemonRpc(
-			`http://${state.daemonAddress}`,
+		const daemon = await withTimeout(
+			connectToDaemonRpc(`http://${state.daemonAddress}`),
+			8000,
+			'daemon connect',
 		)
-		await daemon.getHeight()
+		await withTimeout(daemon.getHeight(), 8000, 'daemon get_height')
 		return true
 	} catch (e) {
 		console.log(`[monero] connection check failed:`, e)

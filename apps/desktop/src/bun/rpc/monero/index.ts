@@ -108,12 +108,19 @@ export function createMoneroHandlers(state: {
 			console.log('[rpc] moneroRestoreWallet:', name)
 			if (!state.manager)
 				throw new Error('Monero wallet RPC not started')
+			// Default to ~2 days of history instead of a full genesis scan
+			// (which can take hours against a remote daemon).
+			let height = restoreHeight
+			if (!height || height === 0) {
+				const tip = await walletGetDaemonHeight(state.manager)
+				if (tip > 1440) height = tip - 1440
+			}
 			await walletRestore(
 				state.manager,
 				name,
 				password,
 				mnemonic,
-				restoreHeight,
+				height,
 			)
 			const address = await walletGetAddress(state.manager)
 			console.log(

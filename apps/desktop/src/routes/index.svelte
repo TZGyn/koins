@@ -250,16 +250,20 @@
 						</CardDescription>
 					</CardHeader>
 					<CardContent class="flex flex-1 flex-col justify-center">
-						{#if moneroWallet.walletOpen}
-							<p class="font-mono text-xl tabular-nums">{fmtBal(xmrBalance, 4)}</p>
-							{#if xmrPrice}
-								<p class="mt-0.5 text-sm text-muted-foreground tabular-nums">
-									${fmtUsd(xmrTotalUsd)}
-								</p>
-								<p class="mt-2 text-xs text-muted-foreground">
-									${fmtUsd(parseFloat(xmrPrice) )} / XMR
-								</p>
-							{/if}
+					{#if moneroWallet.walletOpen}
+						<p class="font-mono text-xl tabular-nums">{fmtBal(xmrBalance, 4)}</p>
+						{#if moneroWallet.syncing}
+							<p class="mt-0.5 text-xs text-muted-foreground">Syncing…</p>
+						{:else if xmrPrice}
+							<p class="mt-0.5 text-sm text-muted-foreground tabular-nums">
+								${fmtUsd(xmrTotalUsd)}
+							</p>
+						{/if}
+						{#if xmrPrice}
+							<p class="mt-2 text-xs text-muted-foreground">
+								${fmtUsd(parseFloat(xmrPrice) )} / XMR
+							</p>
+						{/if}
 						{:else if moneroWallet.passwordRequired && moneroWallet.wallets.length > 0}
 							<p class="text-sm text-muted-foreground py-3">Wallet locked — unlock to view balance</p>
 						{:else if moneroWallet.opening}

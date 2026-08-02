@@ -203,7 +203,7 @@
 {:else}
 <div class="space-y-6">
 	<div class="flex flex-col items-center py-2">
-		{#if w.loading}
+		{#if w.loading && !w.syncing}
 			<div class="h-12 w-40 rounded-lg bg-muted animate-pulse"></div>
 		{:else}
 			<p class="text-sm text-muted-foreground">Balance</p>
@@ -222,6 +222,14 @@
 				<p class="mt-1 text-xs text-muted-foreground">
 					Unlocked: {w.unlocked} XMR
 				</p>
+			{/if}
+			{#if w.syncing}
+				<div class="mt-2 flex items-center gap-2">
+					<Loader />
+					<p class="text-xs text-muted-foreground">
+						Syncing wallet — balance updates when the scan completes
+					</p>
+				</div>
 			{/if}
 			<div class="mt-2 flex items-center gap-1.5">
 				<div class="size-2 rounded-full {w.connected ? 'bg-green-500' : 'bg-red-500'}"></div>
