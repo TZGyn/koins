@@ -95,6 +95,7 @@ export const MoneroWallet = () => {
 		if (loginInFlight) return loginInFlight
 		loginInFlight = (async () => {
 			accountType = 'monero'
+			error = ''
 			beginOpening()
 			try {
 				if (installed && !running) {

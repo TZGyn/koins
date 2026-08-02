@@ -24,6 +24,7 @@ import {
 	isConnected,
 } from '../../lib/monero'
 import type { MoneroWalletState } from '../../lib/monero'
+import { log, logError } from '../../lib/logger'
 
 export function createMoneroHandlers(state: {
 	manager: MoneroWalletState | null
@@ -64,10 +65,12 @@ export function createMoneroHandlers(state: {
 				await walletStart(state.manager, daemonAddress)
 			} catch (e) {
 				console.log('[rpc] moneroStart error:', e)
+				logError('[rpc] moneroStart error', e)
 				return { running: false, walletOpen: false, connected: false }
 			}
 			const connected = await isConnected(state.manager)
 			console.log('[rpc] moneroStart complete, connected:', connected)
+			log(`[rpc] moneroStart complete, connected: ${connected}`)
 			return { running: true, walletOpen: false, connected }
 		},
 		moneroStop: async () => {
@@ -129,7 +132,13 @@ export function createMoneroHandlers(state: {
 			console.log('[rpc] moneroOpenWallet:', name)
 			if (!state.manager)
 				throw new Error('Monero wallet RPC not started')
-			await walletOpen(state.manager, name, password)
+			try {
+				await walletOpen(state.manager, name, password)
+				log(`[rpc] moneroOpenWallet ok: ${name}`)
+			} catch (e) {
+				logError(`[rpc] moneroOpenWallet failed (${name})`, e)
+				throw e
+			}
 		},
 		moneroGetBalance: async () => {
 			console.log('[rpc] moneroGetBalance')

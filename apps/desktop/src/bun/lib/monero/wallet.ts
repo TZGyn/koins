@@ -1,11 +1,7 @@
-import {
-	MoneroWalletRpc,
-	MoneroRpcConnection,
-	connectToWalletRpc,
-	connectToDaemonRpc,
-} from 'monero-ts'
+import { MoneroWalletRpc, MoneroRpcConnection, connectToWalletRpc, connectToDaemonRpc } from 'monero-ts'
 import { getBinaryPath, getWalletDir } from './binary'
 import { existsSync, readdirSync } from 'fs'
+import { log, logError } from '../logger'
 
 const DEFAULT_DAEMON = 'xmr-node.cakewallet.com:18081'
 
@@ -65,20 +61,13 @@ async function waitForRpc(
 	let lastErr = ''
 	while (Date.now() - start < timeoutMs) {
 		try {
-			await Bun.connect({
-				hostname: '127.0.0.1',
-				port: state.rpcPort,
-				socket: {
-					open(s) {
-						s.end()
-					},
-					close() {},
-					data() {},
-					error() {},
-				},
-			})
-			console.log(`[monero] RPC ready after ${Date.now() - start}ms`)
-			return
+			const conn = rpcConnection(state)
+			const res = await conn.sendJsonRequest('get_version', {})
+			if (res?.result?.version) {
+				console.log(`[monero] RPC ready after ${Date.now() - start}ms`)
+				return
+			}
+			lastErr = JSON.stringify(res)
 		} catch (e) {
 			lastErr = String(e)
 		}
@@ -87,6 +76,28 @@ async function waitForRpc(
 	throw new Error(
 		`monero-wallet-rpc failed to start within ${timeoutMs}ms: ${lastErr}`,
 	)
+}
+
+async function connectClient(
+	state: MoneroWalletState,
+): Promise<MoneroWalletRpc> {
+	let lastErr = ''
+	for (let attempt = 1; attempt <= 3; attempt++) {
+		try {
+			const client = (await connectToWalletRpc(
+				rpcUrl(state),
+				state.rpcUser,
+				state.rpcPassword,
+			)) as MoneroWalletRpc
+			console.log(`[monero] MoneroWalletRpc connected (attempt ${attempt})`)
+			return client
+		} catch (e) {
+			lastErr = String(e)
+			console.log(`[monero] connectToWalletRpc attempt ${attempt} failed:`, e)
+			if (attempt < 3) await new Promise((r) => setTimeout(r, 1000))
+		}
+	}
+	throw new Error(`Failed to connect to monero-wallet-rpc: ${lastErr}`)
 }
 
 export async function start(
@@ -169,6 +180,9 @@ export async function start(
 				`[monero] wallet-rpc process exited with code ${exitCode}`,
 				error?.message ?? '',
 			)
+			log(
+				`[monero] wallet-rpc process exited with code ${exitCode} ${error?.message ?? ''}`,
+			)
 			if (state.saveTimer) {
 				clearInterval(state.saveTimer)
 				state.saveTimer = null
@@ -222,12 +236,9 @@ export async function start(
 	console.log(`[monero] RPC server is ready`)
 
 	console.log(`[monero] connecting MoneroWalletRpc client...`)
-	state.wallet = (await connectToWalletRpc(
-		rpcUrl(state),
-		state.rpcUser,
-		state.rpcPassword,
-	)) as MoneroWalletRpc
+	state.wallet = await connectClient(state)
 	console.log(`[monero] MoneroWalletRpc connected successfully`)
+	log(`[monero] wallet-rpc started, RPC ready`)
 }
 
 export async function stop(state: MoneroWalletState) {
@@ -241,6 +252,7 @@ export async function stop(state: MoneroWalletState) {
 		if (state.wallet) {
 			await rawRpc(state, 'store')
 			console.log(`[monero] wallet saved before stop`)
+			log(`[monero] wallet saved before stop`)
 		}
 	} catch (e) {
 		console.log(`[monero] wallet save before stop failed:`, e)
@@ -309,9 +321,20 @@ export async function openWallet(
 	password: string,
 ) {
 	console.log(`[monero] opening wallet: ${name}`)
-	if (!state.wallet) throw new Error('Wallet RPC not started')
-	await state.wallet.openWallet(name, password)
-	console.log(`[monero] wallet opened: ${name}`)
+	// Self-heal: the client connection may have been lost while the
+	// wallet-rpc process is still running (e.g. stale-process cleanup).
+	if (!state.wallet) {
+		if (!state.process) throw new Error('Wallet RPC not started')
+		log(`[monero] reconnecting wallet client before open (${name})`)
+		state.wallet = await connectClient(state)
+	}
+	try {
+		await state.wallet.openWallet(name, password)
+		log(`[monero] wallet opened: ${name}`)
+	} catch (e) {
+		logError(`[monero] wallet open failed (${name})`, e)
+		throw e
+	}
 }
 
 export async function closeWallet(state: MoneroWalletState) {

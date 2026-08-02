@@ -22,6 +22,7 @@
 	let xrpBalances = $state<Record<string, { balance: number; funded: boolean }>>({})
 	let loadingXrp = $state(true)
 	let loadingXmr = $state(true)
+	let fetchXrpInFlight = false
 
 	let feError = $state<string | null>(null)
 
@@ -70,10 +71,13 @@
 		})
 
 	async function fetchXrp() {
+		if (fetchXrpInFlight) return
+		fetchXrpInFlight = true
 		loadingXrp = true
 		const rpc = electrobun.rpc
 		if (!rpc) {
 			loadingXrp = false
+			fetchXrpInFlight = false
 			return
 		}
 		try {
@@ -92,6 +96,7 @@
 			}),
 		)
 		loadingXrp = false
+		fetchXrpInFlight = false
 	}
 
 	async function fetchXmr() {
@@ -111,10 +116,29 @@
 	onMount(() => {
 		frontendLog('dashboard mounted')
 		moneroWallet.init().catch((e) => frontendLogError('moneroWallet.init() failed', e))
-		xrpWallet.init().then(async () => {
-			await fetchXrp()
-		})
+		xrpWallet.init().catch((e) => frontendLogError('xrpWallet.init() failed', e))
 		fetchXmr()
+	})
+
+	// Wait for the XRP wallet list to load, then fetch balances.
+	$effect(() => {
+		if (xrpWallet.ready && xrpWallet.wallets.length > 0) {
+			fetchXrp()
+		}
+	})
+
+	// Self-heal: if the monero wallet list never got loaded (e.g. the server
+	// was starting while the dashboard rendered), retry login once.
+	$effect(() => {
+		if (
+			moneroWallet.ready &&
+			!moneroWallet.walletOpen &&
+			!moneroWallet.opening &&
+			moneroWallet.wallets.length === 0 &&
+			!moneroWallet.error
+		) {
+			void moneroWallet.login()
+		}
 	})
 
 	$effect(() => {
@@ -205,7 +229,7 @@
 						</CardDescription>
 					</CardHeader>
 					<CardContent class="flex flex-1 flex-col justify-center">
-						{#if loadingXrp}
+						{#if !xrpWallet.ready || loadingXrp || (xrpWallet.wallets.length > 0 && Object.keys(xrpBalances).length === 0)}
 							<div class="h-14 flex items-center"><Loader /></div>
 						{:else}
 							<p class="font-mono text-xl tabular-nums">{fmtBal(xrpTotalBalance)}</p>
