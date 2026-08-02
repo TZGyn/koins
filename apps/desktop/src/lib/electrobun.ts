@@ -17,7 +17,7 @@ export type {
 } from './rpc-schema'
 
 const rpc = Electroview.defineRPC<RPC>({
-	maxRequestTime: 10000,
+	maxRequestTime: 120000,
 	handlers: {
 		requests: {},
 		messages: {},

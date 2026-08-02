@@ -205,7 +205,7 @@
 			<button
 				onclick={() => navigate('/xrp')}
 				class="text-left transition-transform active:scale-[0.98]">
-				<Card class="hover:border-foreground/20 transition-colors">
+				<Card class="h-44 hover:border-foreground/20 transition-colors">
 					<CardHeader class="pb-3">
 						<div class="flex items-center gap-2">
 							<img src="/icons/xrp.png" alt="" class="size-5 rounded-full" />
@@ -215,7 +215,7 @@
 							{xrpWallet.wallets.length} wallet{xrpWallet.wallets.length !== 1 ? 's' : ''}
 						</CardDescription>
 					</CardHeader>
-					<CardContent>
+					<CardContent class="flex flex-1 flex-col justify-center">
 						{#if loadingXrp}
 							<div class="h-14 flex items-center"><Loader /></div>
 						{:else}
@@ -236,7 +236,7 @@
 			<button
 				onclick={() => navigate('/monero')}
 				class="text-left transition-transform active:scale-[0.98]">
-				<Card class="hover:border-foreground/20 transition-colors">
+				<Card class="h-44 hover:border-foreground/20 transition-colors">
 					<CardHeader class="pb-3">
 						<div class="flex items-center gap-2">
 							<img src="/icons/monero.png" alt="" class="size-5 rounded-full" />
@@ -250,7 +250,7 @@
 									: 'Not set up'}
 						</CardDescription>
 					</CardHeader>
-					<CardContent>
+					<CardContent class="flex flex-1 flex-col justify-center">
 						{#if moneroWallet.walletOpen}
 							<p class="font-mono text-xl tabular-nums">{fmtBal(xmrBalance, 4)}</p>
 							{#if xmrPrice}
