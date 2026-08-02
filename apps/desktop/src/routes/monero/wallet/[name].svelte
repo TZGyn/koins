@@ -154,7 +154,6 @@
 	$effect(() => {
 		if (w.walletOpen && !autoRefreshTimer) {
 			autoRefreshTimer = setInterval(() => {
-				w.refresh()
 				electrobun.rpc?.request
 					.fetchMoneroPrice({})
 					.then((p) => (moneroPrice = p))

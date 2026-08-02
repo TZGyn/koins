@@ -56,6 +56,7 @@ export const createMoneroWallet = () => {
 	let refreshInFlight: Promise<void> | null = null
 	let syncing = $state(false)
 	let syncRetryTimer: ReturnType<typeof setTimeout> | null = null
+	let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
 	let price = $state<string | null>(null)
 	let priceInFlight = false
 
@@ -407,6 +408,31 @@ export const createMoneroWallet = () => {
 			if (walletOpen && !loading) await refresh()
 		}, 15000)
 	}
+
+	const stopAutoRefresh = () => {
+		if (autoRefreshTimer) {
+			clearInterval(autoRefreshTimer)
+			autoRefreshTimer = null
+		}
+	}
+
+	// Refresh runs in the store so the dashboard's connection/sync state
+	// stays live regardless of which page is mounted.
+	const startAutoRefresh = () => {
+		if (autoRefreshTimer || !walletOpen) return
+		autoRefreshTimer = setInterval(() => {
+			if (walletOpen && !loading) refresh()
+		}, 30000)
+	}
+
+	// $effect needs a root outside a component; the root lives for the
+	// lifetime of the singleton store.
+	$effect.root(() => {
+		$effect(() => {
+			if (walletOpen && !loading) startAutoRefresh()
+			else if (!walletOpen) stopAutoRefresh()
+		})
+	})
 
 	const refresh = async () => {
 		const rpc = electrobun.rpc

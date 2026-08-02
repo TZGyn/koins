@@ -47,6 +47,16 @@
 	const hasXmr = $derived(moneroWallet.wallets.length > 0)
 	const noWallets = $derived(!hasXrp && !hasXmr)
 
+	const moneroDot = $derived(
+		!moneroWallet.running
+			? 'bg-muted'
+			: !moneroWallet.connected
+				? 'bg-red-500'
+				: moneroWallet.syncing || moneroWallet.height < moneroWallet.daemonHeight
+					? 'bg-yellow-500 animate-pulse'
+					: 'bg-emerald-500',
+	)
+
 	const fmtUsd = (v: number) =>
 		v.toLocaleString(undefined, {
 			minimumFractionDigits: 2,
@@ -154,9 +164,7 @@
 							<img src="/icons/xrp.png" alt="" class="size-5 rounded-full" />
 							<CardTitle class="text-base">XRP</CardTitle>
 						</div>
-						<CardDescription class="text-xs">
-							{xrpWallet.wallets.length} wallet{xrpWallet.wallets.length !== 1 ? 's' : ''}
-						</CardDescription>
+						<CardDescription class="text-xs">XRP Ledger</CardDescription>
 					</CardHeader>
 					<CardContent class="flex flex-1 flex-col justify-center">
 						{#if !xrpWallet.ready || (xrpWallet.wallets.length > 0 && Object.keys(xrpWallet.balances).length === 0)}
@@ -185,20 +193,21 @@
 							<img src="/icons/monero.png" alt="" class="size-5 rounded-full" />
 							<CardTitle class="text-base">Monero</CardTitle>
 						</div>
-						<CardDescription class="text-xs">
-							{moneroWallet.walletOpen
-								? moneroWallet.walletName || 'Wallet open'
-								: moneroWallet.wallets.length > 0
-									? `${moneroWallet.wallets.length} wallet${moneroWallet.wallets.length !== 1 ? 's' : ''}`
-									: 'Not set up'}
+						<CardDescription class="flex items-center gap-1.5 text-xs">
+							<span class="size-2 shrink-0 rounded-full {moneroDot}"></span>
+							{#if !moneroWallet.running}
+								Server offline
+							{:else if !moneroWallet.connected}
+								Connecting to daemon…
+							{:else}
+								{fmtBal(moneroWallet.height, 0)} / {fmtBal(moneroWallet.daemonHeight, 0)}
+							{/if}
 						</CardDescription>
 					</CardHeader>
 					<CardContent class="flex flex-1 flex-col justify-center">
 						{#if moneroWallet.walletOpen}
 							<p class="font-mono text-xl tabular-nums">{fmtBal(xmrBalance, 4)}</p>
-							{#if moneroWallet.syncing}
-								<p class="mt-0.5 text-xs text-muted-foreground">Syncing…</p>
-							{:else if moneroWallet.price}
+							{#if !moneroWallet.syncing && moneroWallet.price}
 								<p class="mt-0.5 text-sm text-muted-foreground tabular-nums">
 									${fmtUsd(xmrTotalUsd)}
 								</p>
