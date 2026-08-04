@@ -19,6 +19,8 @@
 		SelectTrigger,
 	} from '$lib/components/ui/select/index.js'
 	import { navigate } from 'sv-router/generated'
+	import QrUpload from '$lib/components/qr-upload.svelte'
+	import { parseQrPayload } from '$lib/qr.js'
 
 	const w = moneroWallet
 
@@ -134,7 +136,15 @@
 				</div>
 
 				<div class="space-y-1.5">
-					<label class="text-xs font-medium">Recipient Address</label>
+					<div class="flex items-center justify-between">
+						<label class="text-xs font-medium">Recipient Address</label>
+						<QrUpload
+							onDecode={(text) => {
+								const parsed = parseQrPayload(text, 'monero')
+								recipient = parsed.address
+								if (parsed.amount && !sendAll) amountXmr = parsed.amount
+							}} />
+					</div>
 					<Input
 						placeholder="Monero address starting with 4..."
 						bind:value={recipient} />

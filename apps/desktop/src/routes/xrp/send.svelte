@@ -10,6 +10,8 @@
 		CardDescription,
 	} from '$lib/components/ui/card/index.js'
 	import { navigate } from 'sv-router/generated'
+	import QrUpload from '$lib/components/qr-upload.svelte'
+	import { parseQrPayload } from '$lib/qr.js'
 
 	const w = xrpWallet
 
@@ -78,7 +80,16 @@
 				}}
 				class="space-y-4">
 				<div class="space-y-1.5">
-					<label class="text-xs font-medium">Recipient Address</label>
+					<div class="flex items-center justify-between">
+						<label class="text-xs font-medium">Recipient Address</label>
+						<QrUpload
+							onDecode={(text) => {
+								const parsed = parseQrPayload(text, 'xrp')
+								recipient = parsed.address
+								if (parsed.destinationTag) destinationTag = parsed.destinationTag
+								if (parsed.amount) amountXrp = parsed.amount
+							}} />
+					</div>
 					<Input
 						placeholder="XRP address starting with r..."
 						bind:value={recipient} />
